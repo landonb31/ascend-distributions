@@ -1,6 +1,6 @@
-import sgMail from "@sendgrid/mail";
+import { Resend } from "resend";
 
-let configured = false;
+let resend: Resend | null = null;
 
 export type SendEmailOptions = {
   to: string | string[];
@@ -10,27 +10,24 @@ export type SendEmailOptions = {
 };
 
 export async function sendEmail(options: SendEmailOptions) {
-  const apiKey = process.env.SENDGRID_API_KEY;
+  const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     return null;
   }
 
-  if (!configured) {
-    sgMail.setApiKey(apiKey);
-    configured = true;
+  if (!resend) {
+    resend = new Resend(apiKey);
   }
 
   const from =
-    process.env.SENDGRID_FROM_EMAIL ||
+    process.env.RESEND_FROM_EMAIL ||
     "Ascend Distributions <noreply@ascenddistributions.com>";
 
-  const [response] = await sgMail.send({
+  return resend.emails.send({
     from,
     to: options.to,
     subject: options.subject,
     html: options.html,
     replyTo: options.replyTo,
   });
-
-  return response;
 }

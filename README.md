@@ -11,7 +11,7 @@ Upload once. Release everywhere. Keep more of your royalties.
 - **Styling:** Tailwind CSS + shadcn/ui
 - **Database & Auth:** Supabase (PostgreSQL, Auth, Storage)
 - **Payments:** Stripe (Subscriptions)
-- **Email:** SendGrid
+- **Email:** Resend
 - **Deployment:** Vercel
 
 ## Getting Started
@@ -22,7 +22,7 @@ Upload once. Release everywhere. Keep more of your royalties.
 - npm or pnpm
 - Supabase project
 - Stripe account
-- SendGrid account (verified sender)
+- Resend account (verified domain)
 
 ### 1. Install dependencies
 
@@ -51,11 +51,11 @@ Configure custom SMTP in Supabase → Authentication → SMTP Settings (recommen
 
 | Setting | Value |
 |---------|-------|
-| Host | `smtp.sendgrid.net` |
-| Port | `587` |
-| Username | `apikey` |
-| Password | Your SendGrid API key |
-| Sender email | Same as `SENDGRID_FROM_EMAIL` |
+| Host | `smtp.resend.com` |
+| Port | `465` |
+| Username | `resend` |
+| Password | Your Resend API key |
+| Sender email | Same as `RESEND_FROM_EMAIL` |
 
 Then raise email rate limits under Authentication → Rate Limits.
 
@@ -108,7 +108,7 @@ src/
 ├── lib/
 │   ├── supabase/          # Supabase clients
 │   ├── stripe/            # Stripe config
-│   ├── email/             # SendGrid templates
+│   ├── email/             # Resend templates
 │   ├── api.ts             # API helpers
 │   ├── constants.ts       # App constants
 │   ├── utils.ts           # Utilities
