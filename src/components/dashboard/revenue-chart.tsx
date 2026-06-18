@@ -1,5 +1,6 @@
 "use client";
 
+import { DollarSign } from "lucide-react";
 import {
   AreaChart,
   Area,
@@ -21,9 +22,17 @@ export function RevenueChart({ data }: RevenueChartProps) {
   const chartData = data.length > 0 ? data : generatePlaceholderData();
 
   return (
-    <Card glass>
-      <CardHeader>
-        <CardTitle className="text-base">Revenue Over Time</CardTitle>
+    <Card glass className="border-white/10 overflow-hidden">
+      <CardHeader className="border-b border-white/5 bg-white/[0.01]">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-ascend-blue/30 to-ascend-blue/5">
+            <DollarSign className="h-4 w-4 text-ascend-blue" />
+          </div>
+          <div>
+            <CardTitle className="text-base">Revenue Over Time</CardTitle>
+            <p className="text-xs text-muted-foreground">Estimated earnings</p>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="h-[300px]">

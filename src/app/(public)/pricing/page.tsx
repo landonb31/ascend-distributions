@@ -1,3 +1,4 @@
+import { isSupabaseConfigured, createClient } from "@/lib/supabase/server";
 import { PricingSection } from "@/components/marketing/pricing-section";
 import { CTASection } from "@/components/marketing/cta-section";
 
@@ -5,7 +6,17 @@ export const metadata = {
   title: "Pricing",
 };
 
-export default function PricingPage() {
+export default async function PricingPage() {
+  let isAuthenticated = false;
+
+  if (isSupabaseConfigured()) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    isAuthenticated = !!user;
+  }
+
   return (
     <>
       <div className="py-16 text-center">
@@ -16,7 +27,7 @@ export default function PricingPage() {
           Start free and scale as your career grows. Every plan includes worldwide distribution.
         </p>
       </div>
-      <PricingSection showAll />
+      <PricingSection showAll isAuthenticated={isAuthenticated} />
       <CTASection />
     </>
   );

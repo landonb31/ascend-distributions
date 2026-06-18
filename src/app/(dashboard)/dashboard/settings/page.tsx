@@ -1,5 +1,6 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/server";
 import { SettingsPanel } from "@/components/dashboard/settings-panel";
+import { SettingsCheckoutNotice } from "@/components/dashboard/settings-checkout-notice";
 
 export const metadata = { title: "Settings" };
 
@@ -26,6 +27,7 @@ export default async function SettingsPage() {
         </p>
       </div>
 
+      <SettingsCheckoutNotice />
       <SettingsPanel subscription={subscription} />
     </div>
   );

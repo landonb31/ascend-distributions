@@ -1,8 +1,8 @@
 import { getAuthErrorMessage } from "@/lib/auth-errors";
 import { apiError, apiSuccess } from "@/lib/api";
-import { sendVerificationCodeEmail } from "@/lib/email";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { registerSchema } from "@/lib/validations";
+import { findUserByEmail, issueSignupVerificationCode } from "@/lib/signup-verification";
 
 export async function POST(request: Request) {
   try {
@@ -15,6 +15,25 @@ export async function POST(request: Request) {
 
     const { email, password, displayName, artistName, role } = parsed.data;
     const admin = createAdminClient();
+    const profile = { displayName, artistName, role, password };
+
+    const existingUser = await findUserByEmail(admin, email);
+
+    if (existingUser?.email_confirmed_at) {
+      return apiError("An account with this email already exists. Try signing in instead.", 400);
+    }
+
+    if (existingUser) {
+      await issueSignupVerificationCode(
+        admin,
+        existingUser.id,
+        email,
+        profile,
+        existingUser.user_metadata?.signup_code as string | undefined
+      );
+
+      return apiSuccess({ message: "Check your email for your verification code" });
+    }
 
     const { data: created, error: createError } = await admin.auth.admin.createUser({
       email,
@@ -33,36 +52,15 @@ export async function POST(request: Request) {
 
     const userId = created.user?.id;
 
-    const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-      type: "signup",
-      email,
-      password,
-      options: {
-        data: {
-          display_name: displayName,
-          artist_name: artistName,
-          role,
-        },
-      },
-    });
-
-    const verificationCode = linkData?.properties?.email_otp;
-
-    if (linkError || !verificationCode) {
-      console.error("Signup code error:", linkError);
-      if (userId) {
-        await admin.auth.admin.deleteUser(userId);
-      }
-      return apiError("Could not prepare verification code. Please try again.", 500);
+    if (!userId) {
+      return apiError("Registration failed", 500);
     }
 
-    const emailResult = await sendVerificationCodeEmail(email, verificationCode);
-
-    if (!emailResult || emailResult.error) {
-      console.error("Signup email error:", emailResult?.error);
-      if (userId) {
-        await admin.auth.admin.deleteUser(userId);
-      }
+    try {
+      await issueSignupVerificationCode(admin, userId, email, profile);
+    } catch (error) {
+      console.error("Signup email error:", error);
+      await admin.auth.admin.deleteUser(userId);
       return apiError("Could not send verification email. Please try again.", 500);
     }
 

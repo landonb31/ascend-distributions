@@ -61,24 +61,53 @@ Then raise email rate limits under Authentication → Rate Limits.
 
 ### 4. Set up Stripe
 
-Create products and prices in Stripe Dashboard:
+Add your Stripe keys to `.env.local`:
+
+```bash
+STRIPE_SECRET_KEY=sk_test_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
+
+`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` is required for the embedded payment form on `/dashboard/subscribe`.
+
+Then create the subscription products and prices automatically:
+
+```bash
+npm run setup:stripe
+```
+
+This creates:
 
 | Plan | Monthly | Yearly |
 |------|---------|--------|
 | Standard | $5/mo | $20/yr |
 | Pro | $10/mo | $70/yr |
 
-Add the price IDs to `.env.local`. Set up a webhook endpoint pointing to:
+The script writes the generated price IDs into `.env.local`.
+
+Set up a webhook endpoint pointing to:
 
 ```
-https://your-domain.com/api/stripe/webhook
+https://ascenddistributions.com/api/stripe/webhook
 ```
 
 Events to listen for:
 - `checkout.session.completed`
+- `invoice.paid`
 - `customer.subscription.updated`
 - `customer.subscription.deleted`
 - `invoice.payment_failed`
+
+Enable the Stripe Customer Portal in Stripe Dashboard → Settings → Billing → Customer portal.
+
+Checkout is embedded on-site at `/dashboard/subscribe` using Stripe Payment Element (no redirect to Stripe Checkout).
+
+For local webhook testing, install the [Stripe CLI](https://stripe.com/docs/stripe-cli) and run:
+
+```bash
+stripe listen --forward-to localhost:3000/api/stripe/webhook
+```
 
 ### 5. Run locally
 

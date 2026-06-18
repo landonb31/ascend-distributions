@@ -1,5 +1,6 @@
 "use client";
 
+import { Play } from "lucide-react";
 import {
   AreaChart,
   Area,
@@ -21,9 +22,17 @@ export function StreamsChart({ data }: StreamsChartProps) {
   const chartData = data.length > 0 ? data : generatePlaceholderData();
 
   return (
-    <Card glass>
-      <CardHeader>
-        <CardTitle className="text-base">Streams Over Time</CardTitle>
+    <Card glass className="border-white/10 overflow-hidden">
+      <CardHeader className="border-b border-white/5 bg-white/[0.01]">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-ascend-purple/30 to-ascend-purple/5">
+            <Play className="h-4 w-4 text-ascend-purple" />
+          </div>
+          <div>
+            <CardTitle className="text-base">Streams Over Time</CardTitle>
+            <p className="text-xs text-muted-foreground">Last 30 days</p>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="h-[300px]">

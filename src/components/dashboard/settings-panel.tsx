@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Check, CreditCard, ExternalLink, Loader2 } from "lucide-react";
+import { CheckoutButton } from "@/components/billing/checkout-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +18,7 @@ interface SettingsPanelProps {
 export function SettingsPanel({ subscription }: SettingsPanelProps) {
   const [loadingPortal, setLoadingPortal] = useState(false);
   const [portalError, setPortalError] = useState<string | null>(null);
+  const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">("monthly");
 
   const currentPlan: SubscriptionPlan = subscription?.plan || "free";
   const planDetails = PLANS[currentPlan];
@@ -93,10 +95,39 @@ export function SettingsPanel({ subscription }: SettingsPanelProps) {
         </CardContent>
       </Card>
 
+      <div className="flex items-center justify-center gap-2">
+        <button
+          type="button"
+          onClick={() => setBillingInterval("monthly")}
+          className={cn(
+            "rounded-full px-4 py-2 text-sm font-medium transition-colors",
+            billingInterval === "monthly"
+              ? "bg-gradient-to-r from-ascend-purple to-ascend-blue text-white"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Monthly
+        </button>
+        <button
+          type="button"
+          onClick={() => setBillingInterval("yearly")}
+          className={cn(
+            "rounded-full px-4 py-2 text-sm font-medium transition-colors",
+            billingInterval === "yearly"
+              ? "bg-gradient-to-r from-ascend-purple to-ascend-blue text-white"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Yearly
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {(Object.entries(PLANS) as [SubscriptionPlan, typeof PLANS.free][]).map(([id, plan]) => {
           const isCurrent = id === currentPlan;
           const isPopular = id === "standard";
+          const displayPrice =
+            billingInterval === "monthly" ? plan.monthlyPrice : plan.yearlyPrice;
 
           return (
             <Card
@@ -125,12 +156,11 @@ export function SettingsPanel({ subscription }: SettingsPanelProps) {
                   )}
                 </div>
                 <CardDescription>
-                  <span className="text-3xl font-bold text-foreground">${plan.monthlyPrice}</span>
-                  {plan.monthlyPrice > 0 && (
-                    <span className="text-muted-foreground">/month</span>
-                  )}
-                  {plan.yearlyPrice > 0 && (
-                    <span className="block text-sm mt-1">or ${plan.yearlyPrice}/year</span>
+                  <span className="text-3xl font-bold text-foreground">${displayPrice}</span>
+                  {displayPrice > 0 && (
+                    <span className="text-muted-foreground">
+                      {billingInterval === "monthly" ? "/month" : "/year"}
+                    </span>
                   )}
                 </CardDescription>
                 <p className="text-sm font-medium text-ascend-purple mt-2">
@@ -147,11 +177,15 @@ export function SettingsPanel({ subscription }: SettingsPanelProps) {
                   ))}
                 </ul>
                 {!isCurrent && (
-                  <Button asChild className="w-full" variant={isPopular ? "default" : "outline"}>
-                    <Link href={`/pricing?plan=${id}`}>
-                      Upgrade to {plan.name}
-                    </Link>
-                  </Button>
+                  <CheckoutButton
+                    plan={id}
+                    interval={billingInterval}
+                    isAuthenticated
+                    className="w-full"
+                    variant={isPopular ? "default" : "outline"}
+                  >
+                    Upgrade to {plan.name}
+                  </CheckoutButton>
                 )}
               </CardContent>
             </Card>

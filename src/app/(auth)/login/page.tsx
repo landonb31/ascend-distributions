@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { loginSchema, type LoginInput } from "@/lib/validations";
+import { getAuthErrorMessage } from "@/lib/auth-errors";
 import { createClient } from "@/lib/supabase/client";
 import { APP_NAME } from "@/lib/constants";
 
@@ -19,25 +20,45 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") || "/dashboard";
   const [error, setError] = useState<string | null>(null);
+  const [needsVerification, setNeedsVerification] = useState(false);
   const supabase = createClient();
 
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
   });
 
+  const emailValue = watch("email");
+
   async function onSubmit(data: LoginInput) {
     setError(null);
+    setNeedsVerification(false);
+
     const { error: authError } = await supabase.auth.signInWithPassword({
       email: data.email,
       password: data.password,
     });
 
     if (authError) {
-      setError(authError.message);
+      const statusResponse = await fetch("/api/auth/account-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: data.email }),
+      });
+      const status = await statusResponse.json().catch(() => ({}));
+
+      if (status?.data?.needsVerification) {
+        sessionStorage.setItem("signup_password", data.password);
+        setNeedsVerification(true);
+        setError("Your email isn't verified yet. Enter the 6-digit code we sent you.");
+        return;
+      }
+
+      setError(getAuthErrorMessage(authError.message));
       return;
     }
 
@@ -72,6 +93,16 @@ function LoginForm() {
           {error && (
             <div className="rounded-lg bg-red-400/10 border border-red-400/20 p-3 text-sm text-red-400">
               {error}
+              {needsVerification && emailValue && (
+                <p className="mt-2">
+                  <Link
+                    href={`/verify?registered=true&email=${encodeURIComponent(emailValue)}`}
+                    className="text-ascend-purple hover:underline font-medium"
+                  >
+                    Enter verification code
+                  </Link>
+                </p>
+              )}
             </div>
           )}
           <Button type="submit" className="w-full" disabled={isSubmitting}>

@@ -28,9 +28,9 @@ export const verifyCodeSchema = z.object({
   email: z.string().email("Invalid email address"),
   code: z
     .string()
-    .min(6, "Enter the 6-digit code")
-    .max(6, "Enter the 6-digit code")
+    .length(6, "Enter all 6 digits")
     .regex(/^\d{6}$/, "Code must be 6 digits"),
+  password: z.string().min(8, "Password is required"),
 });
 
 export const profileSchema = z.object({

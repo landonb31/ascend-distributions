@@ -4,6 +4,8 @@ import { StatsCard } from "@/components/dashboard/stats-card";
 import { StreamsChart } from "@/components/dashboard/streams-chart";
 import { RevenueChart } from "@/components/dashboard/revenue-chart";
 import { RecentReleases } from "@/components/dashboard/recent-releases";
+import { DashboardWelcome } from "@/components/dashboard/dashboard-welcome";
+import { DashboardPlatformBar } from "@/components/dashboard/dashboard-platform-bar";
 import {
   Play,
   DollarSign,
@@ -21,6 +23,15 @@ export default async function DashboardPage() {
   } = await supabase.auth.getUser();
 
   if (!user) return null;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("display_name")
+    .eq("user_id", user.id)
+    .single();
+
+  const displayName =
+    profile?.display_name || user.email?.split("@")[0] || "Artist";
 
   const { data: releases } = await supabase
     .from("releases")
@@ -58,12 +69,13 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Dashboard</h1>
-        <p className="text-muted-foreground mt-1">
-          Welcome back. Here&apos;s an overview of your music performance.
-        </p>
-      </div>
+      <DashboardWelcome
+        displayName={displayName}
+        activeReleases={activeReleases}
+        totalStreams={formatNumber(totalStreams)}
+      />
+
+      <DashboardPlatformBar />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatsCard
@@ -71,26 +83,31 @@ export default async function DashboardPage() {
           value={formatNumber(totalStreams)}
           icon={Play}
           trend={monthlyGrowth > 0 ? `+${monthlyGrowth}%` : undefined}
+          accent="purple"
         />
         <StatsCard
           title="Estimated Revenue"
           value={formatCurrency(totalRevenue)}
           icon={DollarSign}
+          accent="blue"
         />
         <StatsCard
           title="Monthly Growth"
           value={`${monthlyGrowth > 0 ? "+" : ""}${monthlyGrowth}%`}
           icon={TrendingUp}
+          accent="cyan"
         />
         <StatsCard
           title="Active Releases"
           value={String(activeReleases)}
           icon={Disc3}
+          accent="purple"
         />
         <StatsCard
           title="Upcoming Releases"
           value={String(upcomingReleases)}
           icon={Calendar}
+          accent="blue"
         />
       </div>
 

@@ -6,6 +6,26 @@ import type { Subscription, SubscriptionPlan, SubscriptionStatus } from "@/types
 
 export const runtime = "nodejs";
 
+async function findUserIdByCustomerId(customerId: string) {
+  const supabase = await createServiceClient();
+  const { data } = await supabase
+    .from("subscriptions")
+    .select("user_id")
+    .eq("stripe_customer_id", customerId)
+    .maybeSingle();
+
+  return data?.user_id ?? null;
+}
+
+function resolveUserId(
+  metadataUserId: string | undefined,
+  customerId: string | Stripe.Customer | Stripe.DeletedCustomer | null
+) {
+  if (metadataUserId) return Promise.resolve(metadataUserId);
+  if (typeof customerId === "string") return findUserIdByCustomerId(customerId);
+  return Promise.resolve(null);
+}
+
 function mapStripeStatus(status: Stripe.Subscription.Status): SubscriptionStatus {
   const statusMap: Record<string, SubscriptionStatus> = {
     active: "active",
@@ -56,6 +76,26 @@ async function updateSubscription(
   }
 }
 
+async function syncSubscriptionFromStripe(
+  userId: string,
+  subscription: Stripe.Subscription,
+  stripeCustomerId?: string
+) {
+  const priceId = subscription.items.data[0]?.price.id;
+  const plan = priceId ? getPlanFromPriceId(priceId) : "free";
+
+  await updateSubscription(userId, {
+    plan,
+    status: mapStripeStatus(subscription.status),
+    ...(stripeCustomerId ? { stripeCustomerId } : {}),
+    stripeSubscriptionId: subscription.id,
+    stripePriceId: priceId,
+    currentPeriodStart: new Date(subscription.current_period_start * 1000).toISOString(),
+    currentPeriodEnd: new Date(subscription.current_period_end * 1000).toISOString(),
+    cancelAtPeriodEnd: subscription.cancel_at_period_end,
+  });
+}
+
 export async function POST(request: Request) {
   const body = await request.text();
   const headersList = await headers();
@@ -94,46 +134,55 @@ export async function POST(request: Request) {
         if (!subscriptionId) break;
 
         const subscription = await getStripe().subscriptions.retrieve(subscriptionId);
-        const priceId = subscription.items.data[0]?.price.id;
-        const plan = priceId ? getPlanFromPriceId(priceId) : "free";
 
-        await updateSubscription(userId, {
-          plan,
-          status: mapStripeStatus(subscription.status),
-          stripeCustomerId: session.customer as string,
-          stripeSubscriptionId: subscriptionId,
-          stripePriceId: priceId,
-          currentPeriodStart: new Date(subscription.current_period_start * 1000).toISOString(),
-          currentPeriodEnd: new Date(subscription.current_period_end * 1000).toISOString(),
-          cancelAtPeriodEnd: subscription.cancel_at_period_end,
-        });
+        await syncSubscriptionFromStripe(
+          userId,
+          subscription,
+          session.customer as string
+        );
+        break;
+      }
+
+      case "invoice.paid": {
+        const invoice = event.data.object as Stripe.Invoice;
+        const subscriptionId =
+          typeof invoice.subscription === "string"
+            ? invoice.subscription
+            : invoice.subscription?.id;
+
+        if (!subscriptionId) break;
+
+        const subscription = await getStripe().subscriptions.retrieve(subscriptionId);
+        const userId =
+          subscription.metadata?.supabase_user_id ||
+          (await resolveUserId(undefined, subscription.customer));
+
+        if (!userId) break;
+
+        const customerId =
+          typeof subscription.customer === "string" ? subscription.customer : undefined;
+
+        await syncSubscriptionFromStripe(userId, subscription, customerId);
         break;
       }
 
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;
-        const userId = subscription.metadata?.supabase_user_id;
+        const userId =
+          subscription.metadata?.supabase_user_id ||
+          (await resolveUserId(undefined, subscription.customer));
 
         if (!userId) break;
 
-        const priceId = subscription.items.data[0]?.price.id;
-        const plan = priceId ? getPlanFromPriceId(priceId) : undefined;
-
-        await updateSubscription(userId, {
-          ...(plan && { plan }),
-          status: mapStripeStatus(subscription.status),
-          stripeSubscriptionId: subscription.id,
-          stripePriceId: priceId,
-          currentPeriodStart: new Date(subscription.current_period_start * 1000).toISOString(),
-          currentPeriodEnd: new Date(subscription.current_period_end * 1000).toISOString(),
-          cancelAtPeriodEnd: subscription.cancel_at_period_end,
-        });
+        await syncSubscriptionFromStripe(userId, subscription);
         break;
       }
 
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
-        const userId = subscription.metadata?.supabase_user_id;
+        const userId =
+          subscription.metadata?.supabase_user_id ||
+          (await resolveUserId(undefined, subscription.customer));
 
         if (!userId) break;
 
@@ -159,7 +208,9 @@ export async function POST(request: Request) {
         if (!subscriptionId) break;
 
         const subscription = await getStripe().subscriptions.retrieve(subscriptionId);
-        const userId = subscription.metadata?.supabase_user_id;
+        const userId =
+          subscription.metadata?.supabase_user_id ||
+          (await resolveUserId(undefined, subscription.customer));
 
         if (!userId) break;
 

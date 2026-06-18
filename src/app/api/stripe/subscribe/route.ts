@@ -73,7 +73,7 @@ export async function POST(request: Request) {
       publishableKey,
     });
   } catch (error) {
-    console.error("Checkout error:", error);
-    return apiError("Failed to initialize embedded checkout", 500);
+    console.error("Subscribe error:", error);
+    return apiError("Failed to initialize subscription payment", 500);
   }
 }

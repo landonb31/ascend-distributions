@@ -59,10 +59,19 @@ export function DashboardSidebar({ user }: DashboardSidebarProps) {
   const sidebarContent = (
     <>
       <div className="flex h-16 items-center gap-2 border-b border-white/10 px-6">
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/dashboard" className="flex items-center gap-2">
           <Logo size={32} />
-          <span className="text-sm font-bold gradient-text hidden lg:block">{APP_NAME}</span>
+          <span className="hidden text-sm font-bold gradient-text lg:block">{APP_NAME}</span>
         </Link>
+      </div>
+
+      <div className="px-4 pt-4">
+        <Button className="w-full shadow-lg shadow-purple-500/15" asChild>
+          <Link href="/dashboard/upload" onClick={() => setMobileOpen(false)}>
+            <Upload className="mr-2 h-4 w-4" />
+            Upload Music
+          </Link>
+        </Button>
       </div>
 
       <nav className="flex-1 space-y-1 p-4">
@@ -80,7 +89,7 @@ export function DashboardSidebar({ user }: DashboardSidebarProps) {
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                 isActive
-                  ? "bg-gradient-to-r from-ascend-purple/20 to-ascend-blue/20 text-foreground border border-white/10"
+                  ? "border border-white/10 bg-gradient-to-r from-ascend-purple/25 to-ascend-blue/15 text-foreground shadow-sm shadow-purple-500/10"
                   : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
               )}
             >
@@ -149,7 +158,7 @@ export function DashboardSidebar({ user }: DashboardSidebarProps) {
       )}
 
       {/* Desktop sidebar */}
-      <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col glass border-r border-white/10">
+      <aside className="hidden lg:fixed lg:inset-y-0 lg:z-40 lg:flex lg:w-64 lg:flex-col border-r border-white/10 bg-black/50 backdrop-blur-xl">
         {sidebarContent}
       </aside>
     </>

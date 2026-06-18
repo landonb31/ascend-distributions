@@ -51,6 +51,7 @@ export default function RegisterPage() {
       return;
     }
 
+    sessionStorage.setItem("signup_password", data.password);
     router.push(`/verify?registered=true&email=${encodeURIComponent(data.email)}`);
   }
 

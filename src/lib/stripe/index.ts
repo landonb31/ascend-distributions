@@ -15,6 +15,7 @@ export function getStripe(): Stripe {
 }
 
 export { PLANS, getPlanFromPriceId };
+export { isStripeConfigured, getStripePublishableKey } from "./config";
 
 export async function getOrCreateStripeCustomer(
   userId: string,
