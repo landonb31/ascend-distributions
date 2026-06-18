@@ -13,15 +13,15 @@ export type NotificationType =
   | "new_like"
   | "system";
 
-export interface User {
+export type User = {
   id: string;
   email: string;
   role: UserRole;
   created_at: string;
   updated_at: string;
-}
+};
 
-export interface Profile {
+export type Profile = {
   id: string;
   user_id: string;
   display_name: string;
@@ -35,9 +35,9 @@ export interface Profile {
   following_count: number;
   created_at: string;
   updated_at: string;
-}
+};
 
-export interface Artist {
+export type Artist = {
   id: string;
   user_id: string;
   artist_name: string;
@@ -46,9 +46,9 @@ export interface Artist {
   verified: boolean;
   created_at: string;
   updated_at: string;
-}
+};
 
-export interface Label {
+export type Label = {
   id: string;
   user_id: string;
   label_name: string;
@@ -56,9 +56,9 @@ export interface Label {
   logo_url: string | null;
   created_at: string;
   updated_at: string;
-}
+};
 
-export interface Subscription {
+export type Subscription = {
   id: string;
   user_id: string;
   plan: SubscriptionPlan;
@@ -71,9 +71,9 @@ export interface Subscription {
   cancel_at_period_end: boolean;
   created_at: string;
   updated_at: string;
-}
+};
 
-export interface Release {
+export type Release = {
   id: string;
   user_id: string;
   artist_id: string | null;
@@ -94,9 +94,11 @@ export interface Release {
   created_at: string;
   updated_at: string;
   tracks?: Track[];
-}
+};
 
-export interface Track {
+export type ReleaseWithTracks = Release & { tracks?: Track[] };
+
+export type Track = {
   id: string;
   release_id: string;
   user_id: string;
@@ -113,9 +115,9 @@ export interface Track {
   total_revenue: number;
   created_at: string;
   updated_at: string;
-}
+};
 
-export interface Royalty {
+export type Royalty = {
   id: string;
   user_id: string;
   track_id: string | null;
@@ -129,9 +131,9 @@ export interface Royalty {
   artist_share: number;
   status: "pending" | "paid";
   created_at: string;
-}
+};
 
-export interface Payout {
+export type Payout = {
   id: string;
   user_id: string;
   amount: number;
@@ -144,9 +146,9 @@ export interface Payout {
   notes: string | null;
   created_at: string;
   updated_at: string;
-}
+};
 
-export interface AnalyticsDaily {
+export type AnalyticsDaily = {
   id: string;
   user_id: string;
   track_id: string | null;
@@ -157,9 +159,9 @@ export interface AnalyticsDaily {
   platform: string | null;
   country: string | null;
   created_at: string;
-}
+};
 
-export interface Notification {
+export type Notification = {
   id: string;
   user_id: string;
   type: NotificationType;
@@ -169,9 +171,9 @@ export interface Notification {
   is_read: boolean;
   metadata: Record<string, unknown>;
   created_at: string;
-}
+};
 
-export interface Post {
+export type Post = {
   id: string;
   user_id: string;
   content: string;
@@ -183,9 +185,9 @@ export interface Post {
   updated_at: string;
   profile?: Profile;
   user_liked?: boolean;
-}
+};
 
-export interface Comment {
+export type Comment = {
   id: string;
   post_id: string;
   user_id: string;
@@ -193,21 +195,21 @@ export interface Comment {
   created_at: string;
   updated_at: string;
   profile?: Profile;
-}
+};
 
-export interface Like {
+export type Like = {
   id: string;
   user_id: string;
   post_id: string;
   created_at: string;
-}
+};
 
-export interface Follow {
+export type Follow = {
   id: string;
   follower_id: string;
   following_id: string;
   created_at: string;
-}
+};
 
 export interface DashboardStats {
   totalStreams: number;
@@ -245,24 +247,36 @@ export interface UploadMetadata {
   isrc?: string;
 }
 
+type DbTable<Row> = {
+  Row: Row;
+  Insert: Partial<Row>;
+  Update: Partial<Row>;
+  Relationships: [];
+};
+
+// Empty Supabase schema sections — must not use Record<string, never> (breaks table inference).
+type SupabaseEmptySection = Record<string, never>;
+
 export interface Database {
   public: {
     Tables: {
-      users: { Row: User; Insert: Partial<User>; Update: Partial<User> };
-      profiles: { Row: Profile; Insert: Partial<Profile>; Update: Partial<Profile> };
-      artists: { Row: Artist; Insert: Partial<Artist>; Update: Partial<Artist> };
-      labels: { Row: Label; Insert: Partial<Label>; Update: Partial<Label> };
-      subscriptions: { Row: Subscription; Insert: Partial<Subscription>; Update: Partial<Subscription> };
-      releases: { Row: Release; Insert: Partial<Release>; Update: Partial<Release> };
-      tracks: { Row: Track; Insert: Partial<Track>; Update: Partial<Track> };
-      royalties: { Row: Royalty; Insert: Partial<Royalty>; Update: Partial<Royalty> };
-      payouts: { Row: Payout; Insert: Partial<Payout>; Update: Partial<Payout> };
-      analytics_daily: { Row: AnalyticsDaily; Insert: Partial<AnalyticsDaily>; Update: Partial<AnalyticsDaily> };
-      notifications: { Row: Notification; Insert: Partial<Notification>; Update: Partial<Notification> };
-      posts: { Row: Post; Insert: Partial<Post>; Update: Partial<Post> };
-      comments: { Row: Comment; Insert: Partial<Comment>; Update: Partial<Comment> };
-      likes: { Row: Like; Insert: Partial<Like>; Update: Partial<Like> };
-      follows: { Row: Follow; Insert: Partial<Follow>; Update: Partial<Follow> };
+      users: DbTable<User>;
+      profiles: DbTable<Profile>;
+      artists: DbTable<Artist>;
+      labels: DbTable<Label>;
+      subscriptions: DbTable<Subscription>;
+      releases: DbTable<Omit<Release, "tracks">>;
+      tracks: DbTable<Track>;
+      royalties: DbTable<Royalty>;
+      payouts: DbTable<Payout>;
+      analytics_daily: DbTable<AnalyticsDaily>;
+      notifications: DbTable<Notification>;
+      posts: DbTable<Omit<Post, "profile" | "user_liked">>;
+      comments: DbTable<Omit<Comment, "profile">>;
+      likes: DbTable<Like>;
+      follows: DbTable<Follow>;
     };
+    Views: SupabaseEmptySection;
+    Functions: SupabaseEmptySection;
   };
 }

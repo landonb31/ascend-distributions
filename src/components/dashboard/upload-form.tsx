@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
 import { releaseMetadataSchema, type ReleaseMetadataInput } from "@/lib/validations";
+import type { ReleaseWithTracks } from "@/types";
 import {
   ACCEPTED_AUDIO_FORMATS,
   ACCEPTED_AUDIO_MIME_TYPES,
@@ -89,12 +90,16 @@ export function UploadForm({ defaultArtistName = "", editReleaseId }: UploadForm
     if (!editReleaseId) return;
 
     async function loadDraft() {
+      if (!editReleaseId) return;
+
       const supabase = createClient();
-      const { data: release } = await supabase
+      const { data: releaseData } = await supabase
         .from("releases")
         .select("*, tracks(*)")
         .eq("id", editReleaseId)
         .single();
+
+      const release = releaseData as ReleaseWithTracks | null;
 
       if (!release || release.status !== "draft") {
         setLoadingDraft(false);

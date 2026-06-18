@@ -1,4 +1,5 @@
 import { createBrowserClient } from "@supabase/ssr";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types";
 import { getSupabaseConfig } from "./config";
 
@@ -11,7 +12,7 @@ export function createClient() {
     );
   }
 
-  return createBrowserClient<Database>(config.url, config.anonKey);
+  return createBrowserClient<Database>(config.url, config.anonKey) as unknown as SupabaseClient<Database>;
 }
 
 export { isSupabaseConfigured } from "./config";

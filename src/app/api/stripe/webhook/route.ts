@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import Stripe from "stripe";
 import { getStripe, getPlanFromPriceId } from "@/lib/stripe";
 import { createServiceClient } from "@/lib/supabase/server";
-import type { SubscriptionPlan, SubscriptionStatus } from "@/types";
+import type { Subscription, SubscriptionPlan, SubscriptionStatus } from "@/types";
 
 export const runtime = "nodejs";
 
@@ -35,7 +35,7 @@ async function updateSubscription(
 ) {
   const supabase = await createServiceClient();
 
-  const updatePayload: Record<string, unknown> = {};
+  const updatePayload: Partial<Subscription> = {};
   if (data.plan !== undefined) updatePayload.plan = data.plan;
   if (data.status !== undefined) updatePayload.status = data.status;
   if (data.stripeCustomerId !== undefined) updatePayload.stripe_customer_id = data.stripeCustomerId;

@@ -40,7 +40,7 @@ export function HeroSection() {
             </p>
 
             <div className="mt-10 flex flex-col sm:flex-row gap-4">
-              <Button size="xl" className="animate-pulse-glow group" asChild>
+              <Button size="xl" className="shadow-lg shadow-purple-500/20 group" asChild>
                 <Link href="/register">
                   Start Free
                   <ArrowRight className="ml-1 h-5 w-5 transition-transform group-hover:translate-x-1" />

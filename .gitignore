@@ -35,6 +35,11 @@ yarn-error.log*
 # vercel
 .vercel
 
+# local migration helpers
+scripts/.m*.b64
+scripts/.part*.b64
+scripts/.cdp-*.json
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

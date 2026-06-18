@@ -1,5 +1,6 @@
 import { releaseCreateSchema } from "@/lib/validations";
 import { apiError, apiSuccess, getAuthContext } from "@/lib/api";
+import type { ReleaseStatus } from "@/types";
 
 export async function GET(request: Request) {
   try {
@@ -17,7 +18,7 @@ export async function GET(request: Request) {
       .order("created_at", { ascending: false });
 
     if (status) {
-      query = query.eq("status", status);
+      query = query.eq("status", status as ReleaseStatus);
     }
 
     const { data, error } = await query;

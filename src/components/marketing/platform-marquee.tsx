@@ -1,6 +1,41 @@
 "use client";
 
+import Image from "next/image";
 import { DISTRIBUTION_PLATFORMS } from "@/lib/constants";
+
+type Platform = (typeof DISTRIBUTION_PLATFORMS)[number];
+
+function platformIconUrl(icon: string, color: string, iconColor?: string) {
+  const hex = (iconColor ?? color).replace("#", "");
+  return `https://cdn.simpleicons.org/${icon}/${hex}`;
+}
+
+function PlatformLogo({ platform }: { platform: Platform }) {
+  const iconColor = "iconColor" in platform ? platform.iconColor : undefined;
+
+  if ("logo" in platform) {
+    return (
+      <Image
+        src={platform.logo}
+        alt={`${platform.name} logo`}
+        width={22}
+        height={22}
+        className="h-[22px] w-[22px] object-contain"
+      />
+    );
+  }
+
+  return (
+    <Image
+      src={platformIconUrl(platform.icon, platform.color, iconColor)}
+      alt={`${platform.name} logo`}
+      width={22}
+      height={22}
+      className="h-[22px] w-[22px] object-contain"
+      unoptimized
+    />
+  );
+}
 
 export function PlatformMarquee() {
   const platforms = [...DISTRIBUTION_PLATFORMS, ...DISTRIBUTION_PLATFORMS];
@@ -21,9 +56,7 @@ export function PlatformMarquee() {
               className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] transition-all duration-300 group-hover:scale-110 group-hover:border-white/20"
               style={{ boxShadow: `0 0 24px ${platform.color}15` }}
             >
-              <span className="text-sm font-bold" style={{ color: platform.color }}>
-                {platform.name.charAt(0)}
-              </span>
+              <PlatformLogo platform={platform} />
             </div>
             <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
               {platform.name}

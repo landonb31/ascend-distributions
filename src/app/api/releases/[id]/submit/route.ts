@@ -1,4 +1,5 @@
 import { apiError, apiSuccess, getAuthContext } from "@/lib/api";
+import type { ReleaseWithTracks } from "@/types";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -10,12 +11,14 @@ export async function POST(_request: Request, { params }: RouteParams) {
 
     const { supabase, user } = auth;
 
-    const { data: release, error: fetchError } = await supabase
+    const { data: releaseData, error: fetchError } = await supabase
       .from("releases")
       .select("*, tracks(*)")
       .eq("id", id)
       .eq("user_id", user.id)
       .single();
+
+    const release = releaseData as ReleaseWithTracks | null;
 
     if (fetchError || !release) {
       return apiError("Release not found", 404);

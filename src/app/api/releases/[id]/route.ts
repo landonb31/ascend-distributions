@@ -1,5 +1,6 @@
 import { releaseUpdateSchema } from "@/lib/validations";
 import { apiError, apiSuccess, getAuthContext } from "@/lib/api";
+import type { Release, ReleaseWithTracks } from "@/types";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -11,11 +12,13 @@ export async function GET(_request: Request, { params }: RouteParams) {
 
     const { supabase, user } = auth;
 
-    const { data: release, error } = await supabase
+    const { data: releaseData, error } = await supabase
       .from("releases")
       .select("*, tracks(*)")
       .eq("id", id)
       .single();
+
+    const release = releaseData as ReleaseWithTracks | null;
 
     if (error || !release) {
       return apiError("Release not found", 404);
@@ -81,7 +84,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
     const { tracks, ...updateData } = parsed.data;
 
-    const updatePayload: Record<string, unknown> = {};
+    const updatePayload: Partial<Omit<Release, "tracks">> = {};
     if (updateData.title !== undefined) updatePayload.title = updateData.title;
     if (updateData.album !== undefined) updatePayload.album = updateData.album;
     if (updateData.genre !== undefined) updatePayload.genre = updateData.genre;
@@ -92,12 +95,14 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     if (updateData.artistId !== undefined) updatePayload.artist_id = updateData.artistId;
     if (updateData.labelId !== undefined) updatePayload.label_id = updateData.labelId;
 
-    const { data: release, error } = await supabase
+    const { data: releaseData, error } = await supabase
       .from("releases")
       .update(updatePayload)
       .eq("id", id)
       .select("*, tracks(*)")
       .single();
+
+    const release = releaseData as ReleaseWithTracks | null;
 
     if (error) {
       console.error("Update release error:", error);

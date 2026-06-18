@@ -113,18 +113,18 @@ export const FAQ_ITEMS = [
 ] as const;
 
 export const DISTRIBUTION_PLATFORMS = [
-  { name: "Spotify", color: "#1DB954" },
-  { name: "Apple Music", color: "#FC3C44" },
-  { name: "YouTube Music", color: "#FF0000" },
-  { name: "TikTok", color: "#00F2EA" },
-  { name: "Amazon Music", color: "#FF9900" },
-  { name: "Pandora", color: "#005483" },
-  { name: "Deezer", color: "#FEAA2D" },
-  { name: "Tidal", color: "#000000" },
-  { name: "iHeartRadio", color: "#C6002B" },
-  { name: "SoundCloud", color: "#FF5500" },
-  { name: "Instagram", color: "#E4405F" },
-  { name: "Beatport", color: "#94D500" },
+  { name: "Spotify", color: "#1DB954", icon: "spotify" },
+  { name: "Apple Music", color: "#FC3C44", icon: "applemusic" },
+  { name: "YouTube Music", color: "#FF0000", icon: "youtubemusic" },
+  { name: "TikTok", color: "#00F2EA", icon: "tiktok" },
+  { name: "Amazon Music", color: "#FF9900", logo: "/logos/platforms/amazon-music.svg" },
+  { name: "Pandora", color: "#005483", icon: "pandora" },
+  { name: "Deezer", color: "#FEAA2D", icon: "deezer" },
+  { name: "Tidal", color: "#000000", icon: "tidal", iconColor: "#FFFFFF" },
+  { name: "iHeartRadio", color: "#C6002B", icon: "iheartradio" },
+  { name: "SoundCloud", color: "#FF5500", icon: "soundcloud" },
+  { name: "Instagram", color: "#E4405F", icon: "instagram" },
+  { name: "Beatport", color: "#94D500", icon: "beatport" },
 ] as const;
 
 export const STATS = [

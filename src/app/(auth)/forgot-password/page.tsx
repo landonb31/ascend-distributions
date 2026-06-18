@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { forgotPasswordSchema, type ForgotPasswordInput } from "@/lib/validations";
+import { getAuthErrorMessage } from "@/lib/auth-errors";
 import { createClient } from "@/lib/supabase/client";
 
 export default function ForgotPasswordPage() {
@@ -33,7 +34,7 @@ export default function ForgotPasswordPage() {
     );
 
     if (authError) {
-      setError(authError.message);
+      setError(getAuthErrorMessage(authError.message));
       return;
     }
 

@@ -1,4 +1,5 @@
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieMethodsServer } from "@supabase/ssr";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import type { Database } from "@/types";
 import { getSupabaseConfig } from "./config";
@@ -14,22 +15,24 @@ export async function createClient() {
 
   const cookieStore = await cookies();
 
-  return createServerClient<Database>(config.url, config.anonKey, {
-    cookies: {
-      getAll() {
-        return cookieStore.getAll();
-      },
-      setAll(cookiesToSet) {
-        try {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          );
-        } catch {
-          // Server Component — ignore
-        }
-      },
+  const cookieMethods: CookieMethodsServer = {
+    getAll() {
+      return cookieStore.getAll();
     },
-  });
+    setAll(cookiesToSet) {
+      try {
+        cookiesToSet.forEach(({ name, value, options }) =>
+          cookieStore.set(name, value, options)
+        );
+      } catch {
+        // Server Component — ignore
+      }
+    },
+  };
+
+  return createServerClient<Database>(config.url, config.anonKey, {
+    cookies: cookieMethods,
+  }) as unknown as SupabaseClient<Database>;
 }
 
 export async function createServiceClient() {
@@ -44,22 +47,24 @@ export async function createServiceClient() {
 
   const cookieStore = await cookies();
 
-  return createServerClient<Database>(config.url, serviceKey, {
-    cookies: {
-      getAll() {
-        return cookieStore.getAll();
-      },
-      setAll(cookiesToSet) {
-        try {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          );
-        } catch {
-          // Server Component — ignore
-        }
-      },
+  const cookieMethods: CookieMethodsServer = {
+    getAll() {
+      return cookieStore.getAll();
     },
-  });
+    setAll(cookiesToSet) {
+      try {
+        cookiesToSet.forEach(({ name, value, options }) =>
+          cookieStore.set(name, value, options)
+        );
+      } catch {
+        // Server Component — ignore
+      }
+    },
+  };
+
+  return createServerClient<Database>(config.url, serviceKey, {
+    cookies: cookieMethods,
+  }) as unknown as SupabaseClient<Database>;
 }
 
 export { isSupabaseConfigured } from "./config";

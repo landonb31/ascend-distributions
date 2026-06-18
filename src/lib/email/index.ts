@@ -1,13 +1,9 @@
-import { Resend } from "resend";
+import { sendEmail } from "./transport";
 
-export const resend = new Resend(process.env.RESEND_API_KEY);
-
-const FROM = process.env.RESEND_FROM_EMAIL || "Ascend Distributions <noreply@ascenddistributions.com>";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 export async function sendWelcomeEmail(to: string, name: string) {
-  return resend.emails.send({
-    from: FROM,
+  return sendEmail({
     to,
     subject: "Welcome to Ascend Distributions",
     html: emailLayout(`
@@ -25,8 +21,7 @@ export async function sendWelcomeEmail(to: string, name: string) {
 
 export async function sendVerificationEmail(to: string, token: string) {
   const verifyUrl = `${APP_URL}/verify?token=${token}`;
-  return resend.emails.send({
-    from: FROM,
+  return sendEmail({
     to,
     subject: "Verify your email — Ascend Distributions",
     html: emailLayout(`
@@ -45,8 +40,7 @@ export async function sendVerificationEmail(to: string, token: string) {
 }
 
 export async function sendPasswordResetEmail(to: string, resetUrl: string) {
-  return resend.emails.send({
-    from: FROM,
+  return sendEmail({
     to,
     subject: "Reset your password — Ascend Distributions",
     html: emailLayout(`
@@ -65,8 +59,7 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string) {
 }
 
 export async function sendReleaseApprovedEmail(to: string, releaseTitle: string) {
-  return resend.emails.send({
-    from: FROM,
+  return sendEmail({
     to,
     subject: `Release Approved: ${releaseTitle}`,
     html: emailLayout(`
@@ -86,8 +79,7 @@ export async function sendReleaseRejectedEmail(
   releaseTitle: string,
   reason: string
 ) {
-  return resend.emails.send({
-    from: FROM,
+  return sendEmail({
     to,
     subject: `Release Needs Changes: ${releaseTitle}`,
     html: emailLayout(`
@@ -112,8 +104,7 @@ export async function sendContactEmail(
   message: string
 ) {
   const supportEmail = process.env.CONTACT_EMAIL || "support@ascenddistributions.com";
-  return resend.emails.send({
-    from: FROM,
+  return sendEmail({
     to: supportEmail,
     replyTo: email,
     subject: `[Contact] ${subject}`,
@@ -129,8 +120,7 @@ export async function sendContactEmail(
 }
 
 export async function sendPayoutSentEmail(to: string, amount: string, method: string) {
-  return resend.emails.send({
-    from: FROM,
+  return sendEmail({
     to,
     subject: `Payout Sent: ${amount}`,
     html: emailLayout(`
