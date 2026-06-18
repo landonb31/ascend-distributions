@@ -24,6 +24,15 @@ export const forgotPasswordSchema = z.object({
   email: z.string().email("Invalid email address"),
 });
 
+export const verifyCodeSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  code: z
+    .string()
+    .min(6, "Enter the 6-digit code")
+    .max(6, "Enter the 6-digit code")
+    .regex(/^\d{6}$/, "Code must be 6 digits"),
+});
+
 export const profileSchema = z.object({
   displayName: z.string().min(2, "Display name must be at least 2 characters"),
   bio: z.string().max(500, "Bio must be under 500 characters").optional(),
@@ -116,6 +125,7 @@ export const checkoutSchema = z.object({
 
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
+export type VerifyCodeInput = z.infer<typeof verifyCodeSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ProfileInput = z.infer<typeof profileSchema>;
 export type ReleaseMetadataInput = z.infer<typeof releaseMetadataSchema>;

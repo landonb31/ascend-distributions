@@ -1,6 +1,8 @@
 import { sendEmail } from "./transport";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+import { getAuthRedirectBaseUrl } from "@/lib/auth-url";
+
+const APP_URL = getAuthRedirectBaseUrl();
 
 export async function sendWelcomeEmail(to: string, name: string) {
   return sendEmail({
@@ -19,8 +21,30 @@ export async function sendWelcomeEmail(to: string, name: string) {
   });
 }
 
-export async function sendVerificationEmail(to: string, token: string) {
-  const verifyUrl = `${APP_URL}/verify?token=${token}`;
+export async function sendVerificationCodeEmail(to: string, code: string) {
+  return sendEmail({
+    to,
+    subject: "Your verification code — Ascend Distributions",
+    html: emailLayout(`
+      <h1 style="color: #fff; font-size: 28px; margin-bottom: 16px;">Verify Your Email</h1>
+      <p style="color: #a1a1aa; font-size: 16px; line-height: 1.6; margin-bottom: 24px;">
+        Enter this code on the verification page to activate your account:
+      </p>
+      <div style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 24px;">
+        <span style="font-size: 36px; font-weight: 700; letter-spacing: 8px; color: #fff; font-family: monospace;">${code}</span>
+      </div>
+      <p style="color: #71717a; font-size: 14px; margin-top: 24px;">
+        This code expires in 1 hour. If you didn't create an account, you can safely ignore this email.
+      </p>
+    `),
+  });
+}
+
+/** @deprecated Use sendVerificationCodeEmail for signup verification. */
+export async function sendVerificationEmail(to: string, verifyTarget: string) {
+  const verifyUrl = verifyTarget.startsWith("http")
+    ? verifyTarget
+    : `${APP_URL}/verify?token=${verifyTarget}`;
   return sendEmail({
     to,
     subject: "Verify your email — Ascend Distributions",

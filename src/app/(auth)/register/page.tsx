@@ -19,13 +19,11 @@ import {
 } from "@/components/ui/select";
 import { registerSchema, type RegisterInput } from "@/lib/validations";
 import { getAuthErrorMessage } from "@/lib/auth-errors";
-import { createClient } from "@/lib/supabase/client";
 import { APP_NAME } from "@/lib/constants";
 
 export default function RegisterPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-  const supabase = createClient();
 
   const {
     register,
@@ -39,25 +37,21 @@ export default function RegisterPage() {
 
   async function onSubmit(data: RegisterInput) {
     setError(null);
-    const { error: authError } = await supabase.auth.signUp({
-      email: data.email,
-      password: data.password,
-      options: {
-        data: {
-          display_name: data.displayName,
-          artist_name: data.artistName,
-          role: data.role,
-        },
-        emailRedirectTo: `${window.location.origin}/verify`,
-      },
+
+    const response = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
     });
 
-    if (authError) {
-      setError(getAuthErrorMessage(authError.message));
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      setError(getAuthErrorMessage(result.error || "Registration failed"));
       return;
     }
 
-    router.push("/verify?registered=true");
+    router.push(`/verify?registered=true&email=${encodeURIComponent(data.email)}`);
   }
 
   return (
