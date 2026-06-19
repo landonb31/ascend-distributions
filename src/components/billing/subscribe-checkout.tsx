@@ -22,6 +22,7 @@ type SubscribeResponse = {
     amount: number;
     interval: "monthly" | "yearly";
     royaltySplit: string;
+    recurringLabel?: string;
   };
 };
 
@@ -88,8 +89,9 @@ export function SubscribeCheckout({ plan, interval }: SubscribeCheckoutProps) {
           <CardTitle className="text-2xl">
             Complete your <span className="gradient-text">subscription</span>
           </CardTitle>
-          <CardDescription>
-            Enter your payment details below. Your plan activates immediately after payment.
+          <CardDescription className="text-base leading-relaxed text-zinc-300">
+            Enter your payment details below. Your recurring subscription starts immediately
+            and renews {interval === "monthly" ? "every month" : "every year"} until you cancel.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-6 sm:p-8">

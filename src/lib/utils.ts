@@ -65,14 +65,67 @@ export function getStatusLabel(status: string): string {
     .join(" ");
 }
 
-export const ACCEPTED_AUDIO_FORMATS = [".wav", ".flac", ".mp3"];
+export const AUDIO_FORMATS = ["wav", "mp3", "m4a", "flac", "aiff", "wma"] as const;
+export type AudioFormat = (typeof AUDIO_FORMATS)[number];
+
+export const ACCEPTED_AUDIO_FORMATS = [
+  ".wav",
+  ".mp3",
+  ".m4a",
+  ".flac",
+  ".aiff",
+  ".aif",
+  ".wma",
+] as const;
+
+export const ACCEPTED_AUDIO_LABEL = "WAV, MP3, M4A, FLAC, AIFF, WMA";
+export const ACCEPTED_AUDIO_UPLOAD_HINT = `Upload your audio file (${ACCEPTED_AUDIO_LABEL})`;
+export const ACCEPTED_AUDIO_SUBTITLE = `(${ACCEPTED_AUDIO_LABEL})`;
+
 export const ACCEPTED_AUDIO_MIME_TYPES = [
   "audio/wav",
   "audio/x-wav",
-  "audio/flac",
+  "audio/wave",
   "audio/mpeg",
   "audio/mp3",
+  "audio/mp4",
+  "audio/x-m4a",
+  "audio/m4a",
+  "audio/flac",
+  "audio/x-flac",
+  "audio/aiff",
+  "audio/x-aiff",
+  "audio/x-ms-wma",
+  "audio/wma",
+  "video/x-ms-wma",
 ];
+
+export function getAudioFormatFromFilename(filename: string): AudioFormat | null {
+  const ext = filename.toLowerCase().slice(filename.lastIndexOf("."));
+  const map: Record<string, AudioFormat> = {
+    ".wav": "wav",
+    ".mp3": "mp3",
+    ".m4a": "m4a",
+    ".flac": "flac",
+    ".aiff": "aiff",
+    ".aif": "aiff",
+    ".wma": "wma",
+  };
+  return map[ext] ?? null;
+}
+
+export function isAcceptedAudioExtension(filename: string): boolean {
+  const ext = filename.toLowerCase().slice(filename.lastIndexOf("."));
+  return ACCEPTED_AUDIO_FORMATS.includes(ext as (typeof ACCEPTED_AUDIO_FORMATS)[number]);
+}
+
+export function isAcceptedAudioUpload(filename: string, mimeType: string): boolean {
+  if (!isAcceptedAudioExtension(filename) || !getAudioFormatFromFilename(filename)) {
+    return false;
+  }
+  if (!mimeType || mimeType === "application/octet-stream") return true;
+  return ACCEPTED_AUDIO_MIME_TYPES.includes(mimeType);
+}
 export const MIN_ARTWORK_SIZE = 3000;
 export const MIN_PAYOUT_AMOUNT = 1;
 

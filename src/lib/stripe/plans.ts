@@ -1,5 +1,28 @@
 import type { SubscriptionPlan } from "@/types";
 
+function priceId(key: string) {
+  return process.env[key] || null;
+}
+
+export function getStripePriceId(
+  plan: SubscriptionPlan,
+  interval: "monthly" | "yearly"
+): string | null {
+  if (plan === "standard") {
+    return interval === "monthly"
+      ? priceId("STRIPE_PRICE_STANDARD_MONTHLY")
+      : priceId("STRIPE_PRICE_STANDARD_YEARLY");
+  }
+
+  if (plan === "pro") {
+    return interval === "monthly"
+      ? priceId("STRIPE_PRICE_PRO_MONTHLY")
+      : priceId("STRIPE_PRICE_PRO_YEARLY");
+  }
+
+  return null;
+}
+
 export const PLANS: Record<
   SubscriptionPlan,
   {
@@ -36,9 +59,11 @@ export const PLANS: Record<
       "Worldwide Distribution",
       "Artist Profiles",
     ],
-    stripePriceIds: {
-      monthly: process.env.STRIPE_PRICE_STANDARD_MONTHLY || null,
-      yearly: process.env.STRIPE_PRICE_STANDARD_YEARLY || null,
+    get stripePriceIds() {
+      return {
+        monthly: priceId("STRIPE_PRICE_STANDARD_MONTHLY"),
+        yearly: priceId("STRIPE_PRICE_STANDARD_YEARLY"),
+      };
     },
   },
   pro: {
@@ -54,9 +79,11 @@ export const PLANS: Record<
       "Release Scheduling",
       "Worldwide Distribution",
     ],
-    stripePriceIds: {
-      monthly: process.env.STRIPE_PRICE_PRO_MONTHLY || null,
-      yearly: process.env.STRIPE_PRICE_PRO_YEARLY || null,
+    get stripePriceIds() {
+      return {
+        monthly: priceId("STRIPE_PRICE_PRO_MONTHLY"),
+        yearly: priceId("STRIPE_PRICE_PRO_YEARLY"),
+      };
     },
   },
 };

@@ -19,6 +19,7 @@ interface EmbeddedPaymentFormProps {
     amount: number;
     interval: "monthly" | "yearly";
     royaltySplit: string;
+    recurringLabel?: string;
   };
 }
 
@@ -31,6 +32,11 @@ export function EmbeddedPaymentForm({ plan }: EmbeddedPaymentFormProps) {
 
   const planDetails = PLANS[plan.id];
   const intervalLabel = plan.interval === "monthly" ? "month" : "year";
+  const recurringLabel =
+    plan.recurringLabel ||
+    (plan.interval === "monthly"
+      ? "Billed monthly, renews automatically"
+      : "Billed yearly, renews automatically");
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -63,48 +69,59 @@ export function EmbeddedPaymentForm({ plan }: EmbeddedPaymentFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6 font-sans text-base leading-relaxed">
       <div className="rounded-xl border border-white/10 bg-white/[0.02] p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-medium uppercase tracking-wider text-ascend-purple">
+            <p className="text-sm font-medium text-ascend-purple">
               Selected plan
             </p>
-            <h3 className="mt-1 text-2xl font-bold">{plan.name}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {plan.royaltySplit} royalty split · billed per {intervalLabel}
+            <h3 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">
+              {plan.name}
+            </h3>
+            <p className="mt-2 text-base text-zinc-300">
+              {plan.royaltySplit} royalty split
+            </p>
+            <p className="mt-1 text-sm font-medium text-ascend-purple">
+              {recurringLabel}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-3xl font-bold">${plan.amount}</p>
-            <p className="text-sm text-muted-foreground">/{intervalLabel}</p>
+            <p className="text-3xl font-semibold tracking-tight">${plan.amount}</p>
+            <p className="text-base text-zinc-300">/{intervalLabel}</p>
           </div>
         </div>
 
-        <ul className="mt-5 space-y-2 border-t border-white/10 pt-5">
+        <ul className="mt-5 space-y-2.5 border-t border-white/10 pt-5">
           {planDetails.features.slice(0, 4).map((feature) => (
-            <li key={feature} className="flex items-start gap-2 text-sm text-muted-foreground">
-              <Check className="mt-0.5 h-4 w-4 shrink-0 text-green-400" />
+            <li key={feature} className="flex items-start gap-2.5 text-base text-zinc-300">
+              <Check className="mt-1 h-4 w-4 shrink-0 text-green-400" />
               {feature}
             </li>
           ))}
         </ul>
       </div>
 
-      <div className="rounded-xl border border-white/10 bg-white/[0.02] p-5">
-        <div className="mb-4 flex items-center gap-2">
-          <Lock className="h-4 w-4 text-ascend-purple" />
-          <h3 className="font-semibold">Payment details</h3>
+      <div className="rounded-xl border border-white/10 bg-white/[0.04] p-5 sm:p-6">
+        <div className="mb-5 flex items-center gap-2">
+          <Lock className="h-5 w-5 text-ascend-purple" />
+          <h3 className="text-lg font-semibold text-foreground">Payment details</h3>
         </div>
-        <PaymentElement
-          options={{
-            layout: "tabs",
-          }}
-        />
+        <div className="payment-element-readable">
+          <PaymentElement
+            options={{
+              layout: "tabs",
+              business: { name: "Ascend Distributions" },
+              terms: {
+                card: "always",
+              },
+            }}
+          />
+        </div>
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-400/20 bg-red-400/10 p-3 text-sm text-red-400">
+        <div className="rounded-lg border border-red-400/20 bg-red-400/10 p-3 text-base text-red-300">
           {error}
         </div>
       )}
@@ -112,7 +129,7 @@ export function EmbeddedPaymentForm({ plan }: EmbeddedPaymentFormProps) {
       <Button
         type="submit"
         size="lg"
-        className="w-full shadow-lg shadow-purple-500/20"
+        className="w-full text-base font-semibold shadow-lg shadow-purple-500/20"
         disabled={!stripe || !elements || submitting}
       >
         {submitting ? (
@@ -121,13 +138,20 @@ export function EmbeddedPaymentForm({ plan }: EmbeddedPaymentFormProps) {
             Processing payment...
           </>
         ) : (
-          <>Subscribe to {plan.name}</>
+          <>
+            Start {plan.interval === "monthly" ? "monthly" : "yearly"} subscription
+          </>
         )}
       </Button>
 
-      <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-        <ShieldCheck className="h-3.5 w-3.5" />
-        Secured by Stripe · Cancel anytime from Settings
+      <div className="space-y-1 text-center">
+        <p className="text-sm text-zinc-300">
+          ${plan.amount}/{intervalLabel} recurring · renews until you cancel
+        </p>
+        <div className="flex items-center justify-center gap-2 text-sm text-zinc-400">
+          <ShieldCheck className="h-3.5 w-3.5" />
+          Secured by Stripe · Cancel anytime from Settings
+        </div>
       </div>
     </form>
   );

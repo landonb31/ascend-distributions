@@ -32,11 +32,15 @@ export async function POST(request: Request) {
 
     const { plan, interval } = parsed.data;
 
-    const { data: existingSubscription } = await supabase
+    const { data: existingSubscription, error: subscriptionError } = await supabase
       .from("subscriptions")
       .select("plan, status, stripe_subscription_id")
       .eq("user_id", user.id)
       .maybeSingle();
+
+    if (subscriptionError) {
+      console.warn("Could not read subscription:", subscriptionError.message);
+    }
 
     if (
       existingSubscription?.stripe_subscription_id &&
@@ -74,6 +78,12 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("Subscribe error:", error);
-    return apiError("Failed to initialize subscription payment", 500);
+    const message =
+      error instanceof Error && error.message.includes("Price not configured")
+        ? "This plan is not available yet. Please try again later."
+        : error instanceof Error && error.message.includes("Payment intent")
+          ? "Could not start payment. Please try again."
+          : "Failed to initialize subscription payment";
+    return apiError(message, 500);
   }
 }

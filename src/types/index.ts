@@ -1,3 +1,6 @@
+import type { DistributionJob, PlatformDelivery } from "@/lib/distribution/types";
+import type { AudioFormat } from "@/lib/utils";
+
 export type UserRole = "artist" | "label" | "admin";
 export type SubscriptionPlan = "free" | "standard" | "pro";
 export type SubscriptionStatus = "active" | "canceled" | "past_due" | "trialing" | "incomplete";
@@ -7,6 +10,8 @@ export type PayoutStatus = "pending" | "processing" | "paid";
 export type NotificationType =
   | "release_approved"
   | "release_rejected"
+  | "release_live"
+  | "distribution_failed"
   | "payout_sent"
   | "new_follower"
   | "new_comment"
@@ -87,10 +92,13 @@ export type Release = {
   upc: string | null;
   status: ReleaseStatus;
   rejection_reason: string | null;
+  external_product_id: string | null;
+  distributed_at: string | null;
   reviewed_by: string | null;
   reviewed_at: string | null;
   total_streams: number;
   total_revenue: number;
+  metadata?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
   tracks?: Track[];
@@ -108,11 +116,12 @@ export type Track = {
   track_number: number;
   duration_seconds: number | null;
   audio_url: string | null;
-  audio_format: "wav" | "flac" | "mp3" | null;
+  audio_format: AudioFormat | null;
   isrc: string | null;
   is_explicit: boolean;
   total_streams: number;
   total_revenue: number;
+  metadata?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 };
@@ -275,6 +284,8 @@ export interface Database {
       comments: DbTable<Omit<Comment, "profile">>;
       likes: DbTable<Like>;
       follows: DbTable<Follow>;
+      distribution_jobs: DbTable<DistributionJob>;
+      platform_deliveries: DbTable<PlatformDelivery>;
     };
     Views: SupabaseEmptySection;
     Functions: SupabaseEmptySection;

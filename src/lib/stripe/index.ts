@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-import { getPlanFromPriceId, PLANS } from "./plans";
+import { getPlanFromPriceId, getStripePriceId, PLANS } from "./plans";
 
 let stripeClient: Stripe | null = null;
 
@@ -14,7 +14,7 @@ export function getStripe(): Stripe {
   return stripeClient;
 }
 
-export { PLANS, getPlanFromPriceId };
+export { PLANS, getPlanFromPriceId, getStripePriceId };
 export { isStripeConfigured, getStripePublishableKey } from "./config";
 
 export async function getOrCreateStripeCustomer(

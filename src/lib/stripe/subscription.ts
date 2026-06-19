@@ -1,8 +1,29 @@
 import Stripe from "stripe";
-import { getStripe, PLANS } from "@/lib/stripe";
+import { getStripe, PLANS, getStripePriceId } from "@/lib/stripe";
 import type { SubscriptionPlan } from "@/types";
 
 type BillingInterval = "monthly" | "yearly";
+
+export function getRecurringBillingLabel(interval: BillingInterval) {
+  return interval === "monthly"
+    ? "Billed monthly, renews automatically"
+    : "Billed yearly, renews automatically";
+}
+
+async function assertRecurringPrice(stripe: Stripe, priceId: string, interval: BillingInterval) {
+  const price = await stripe.prices.retrieve(priceId);
+
+  if (price.type !== "recurring" || !price.recurring) {
+    throw new Error("Configured price is not a recurring subscription price");
+  }
+
+  const expectedInterval = interval === "monthly" ? "month" : "year";
+  if (price.recurring.interval !== expectedInterval) {
+    throw new Error(`Price interval mismatch: expected ${expectedInterval}`);
+  }
+
+  return price;
+}
 
 export async function createSubscriptionPayment({
   customerId,
@@ -16,25 +37,30 @@ export async function createSubscriptionPayment({
   interval: BillingInterval;
 }) {
   const planConfig = PLANS[plan];
-  const priceId = planConfig.stripePriceIds[interval];
+  const priceId = getStripePriceId(plan, interval);
 
   if (!priceId) {
     throw new Error("Price not configured for this plan");
   }
 
   const stripe = getStripe();
+  await assertRecurringPrice(stripe, priceId, interval);
+
   const subscription = await stripe.subscriptions.create({
     customer: customerId,
     items: [{ price: priceId }],
+    collection_method: "charge_automatically",
     payment_behavior: "default_incomplete",
     payment_settings: {
       save_default_payment_method: "on_subscription",
+      payment_method_types: ["card"],
     },
     expand: ["latest_invoice.payment_intent"],
     metadata: {
       supabase_user_id: userId,
       plan,
       interval,
+      billing_type: "recurring",
     },
   });
 
@@ -54,6 +80,7 @@ export async function createSubscriptionPayment({
       amount: interval === "monthly" ? planConfig.monthlyPrice : planConfig.yearlyPrice,
       interval,
       royaltySplit: planConfig.royaltySplit,
+      recurringLabel: getRecurringBillingLabel(interval),
     },
   };
 }

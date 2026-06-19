@@ -114,7 +114,7 @@ async function findOrCreatePrice(stripe, productId, amount, interval, lookupKey)
     currency: "usd",
     unit_amount: amount,
     lookup_key: lookupKey,
-    recurring: { interval },
+    recurring: { interval, interval_count: 1 },
     metadata: {
       app: "ascend-distributions",
       lookup_key: lookupKey,

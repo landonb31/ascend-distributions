@@ -85,6 +85,25 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string) {
   });
 }
 
+export async function sendReleaseDeliveringEmail(to: string, releaseTitle: string) {
+  return sendEmail({
+    to,
+    subject: `Delivering: ${releaseTitle}`,
+    html: emailLayout(`
+      <h1 style="color: #fff; font-size: 28px; margin-bottom: 16px;">On Its Way to Stores</h1>
+      <p style="color: #a1a1aa; font-size: 16px; line-height: 1.6; margin-bottom: 24px;">
+        <strong style="color: #fff;">"${releaseTitle}"</strong> is being delivered to Spotify, Apple Music, YouTube Music, and other major platforms.
+      </p>
+      <p style="color: #71717a; font-size: 14px; line-height: 1.6; margin-bottom: 24px;">
+        It usually takes 24–72 hours to appear on stores. We&apos;ll email you when it&apos;s live.
+      </p>
+      <a href="${APP_URL}/dashboard/releases" style="display: inline-block; background: linear-gradient(135deg, #8B5CF6, #3B82F6); color: #fff; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+        Track Release
+      </a>
+    `),
+  });
+}
+
 export async function sendReleaseApprovedEmail(to: string, releaseTitle: string) {
   return sendEmail({
     to,
@@ -92,7 +111,26 @@ export async function sendReleaseApprovedEmail(to: string, releaseTitle: string)
     html: emailLayout(`
       <h1 style="color: #fff; font-size: 28px; margin-bottom: 16px;">Release Approved!</h1>
       <p style="color: #a1a1aa; font-size: 16px; line-height: 1.6; margin-bottom: 24px;">
-        Great news! Your release <strong style="color: #fff;">"${releaseTitle}"</strong> has been approved and is being distributed to all platforms.
+        Great news! Your release <strong style="color: #fff;">"${releaseTitle}"</strong> has been approved and is being delivered to Spotify, Apple Music, and other major platforms.
+      </p>
+      <p style="color: #71717a; font-size: 14px; line-height: 1.6; margin-bottom: 24px;">
+        Delivery usually takes 24–72 hours. We&apos;ll email you when your release is live.
+      </p>
+      <a href="${APP_URL}/dashboard/releases" style="display: inline-block; background: linear-gradient(135deg, #8B5CF6, #3B82F6); color: #fff; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+        View Release
+      </a>
+    `),
+  });
+}
+
+export async function sendReleaseLiveEmail(to: string, releaseTitle: string) {
+  return sendEmail({
+    to,
+    subject: `Now Live: ${releaseTitle}`,
+    html: emailLayout(`
+      <h1 style="color: #fff; font-size: 28px; margin-bottom: 16px;">Your Release Is Live!</h1>
+      <p style="color: #a1a1aa; font-size: 16px; line-height: 1.6; margin-bottom: 24px;">
+        <strong style="color: #fff;">"${releaseTitle}"</strong> has been delivered to major streaming platforms and should appear on stores within 24–72 hours.
       </p>
       <a href="${APP_URL}/dashboard/releases" style="display: inline-block; background: linear-gradient(135deg, #8B5CF6, #3B82F6); color: #fff; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600;">
         View Release

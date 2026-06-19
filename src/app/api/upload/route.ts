@@ -1,6 +1,8 @@
 import {
-  ACCEPTED_AUDIO_FORMATS,
-  ACCEPTED_AUDIO_MIME_TYPES,
+  ACCEPTED_AUDIO_LABEL,
+  getAudioFormatFromFilename,
+  isAcceptedAudioUpload,
+  type AudioFormat,
 } from "@/lib/utils";
 import { apiError, apiSuccess, getAuthContext } from "@/lib/api";
 
@@ -8,12 +10,8 @@ const MAX_AUDIO_SIZE = 500 * 1024 * 1024; // 500MB
 const MAX_ARTWORK_SIZE = 10 * 1024 * 1024; // 10MB
 const ACCEPTED_ARTWORK_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
-function getAudioFormat(filename: string): "wav" | "flac" | "mp3" | null {
-  const ext = filename.toLowerCase().slice(filename.lastIndexOf("."));
-  if (ext === ".wav") return "wav";
-  if (ext === ".flac") return "flac";
-  if (ext === ".mp3") return "mp3";
-  return null;
+function getAudioFormat(filename: string): AudioFormat | null {
+  return getAudioFormatFromFilename(filename);
 }
 
 export async function POST(request: Request) {
@@ -36,14 +34,9 @@ export async function POST(request: Request) {
 
     if (type === "audio") {
       const format = getAudioFormat(file.name);
-      const ext = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
 
-      if (
-        !format ||
-        !ACCEPTED_AUDIO_FORMATS.includes(ext) ||
-        !ACCEPTED_AUDIO_MIME_TYPES.includes(file.type)
-      ) {
-        return apiError("Invalid audio format. Accepted: WAV, FLAC, MP3");
+      if (!format || !isAcceptedAudioUpload(file.name, file.type)) {
+        return apiError(`Invalid audio format. Accepted: ${ACCEPTED_AUDIO_LABEL}`);
       }
 
       if (file.size > MAX_AUDIO_SIZE) {

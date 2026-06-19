@@ -83,6 +83,10 @@ const config: Config = {
         "float-delayed": "float 6s ease-in-out 3s infinite",
         aurora: "aurora 15s ease-in-out infinite alternate",
         "gradient-x": "gradient-x 8s ease infinite",
+        "spin-slow": "spin 12s linear infinite",
+        "step-in": "stepIn 0.45s ease-out",
+        "glow-pulse": "glowPulse 3s ease-in-out infinite",
+        "wave-bar": "waveBar 1.2s ease-in-out infinite",
       },
       keyframes: {
         fadeIn: {
@@ -124,6 +128,24 @@ const config: Config = {
         "gradient-x": {
           "0%, 100%": { backgroundPosition: "0% 50%" },
           "50%": { backgroundPosition: "100% 50%" },
+        },
+        stepIn: {
+          "0%": { opacity: "0", transform: "translateY(16px) scale(0.98)" },
+          "100%": { opacity: "1", transform: "translateY(0) scale(1)" },
+        },
+        glowPulse: {
+          "0%, 100%": {
+            opacity: "0.4",
+            transform: "scale(1)",
+          },
+          "50%": {
+            opacity: "0.7",
+            transform: "scale(1.05)",
+          },
+        },
+        waveBar: {
+          "0%, 100%": { transform: "scaleY(0.35)" },
+          "50%": { transform: "scaleY(1)" },
         },
       },
     },

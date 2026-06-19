@@ -2,7 +2,15 @@
 
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES
-  ('audio', 'audio', false, 104857600, ARRAY['audio/wav', 'audio/x-wav', 'audio/flac', 'audio/mpeg', 'audio/mp3']),
+  ('audio', 'audio', false, 104857600, ARRAY[
+    'audio/wav', 'audio/x-wav', 'audio/wave',
+    'audio/mpeg', 'audio/mp3',
+    'audio/mp4', 'audio/x-m4a', 'audio/m4a',
+    'audio/flac', 'audio/x-flac',
+    'audio/aiff', 'audio/x-aiff',
+    'audio/x-ms-wma', 'audio/wma', 'video/x-ms-wma',
+    'application/octet-stream'
+  ]),
   ('artwork', 'artwork', true, 10485760, ARRAY['image/jpeg', 'image/png', 'image/webp']),
   ('avatars', 'avatars', true, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp'])
 ON CONFLICT (id) DO NOTHING;

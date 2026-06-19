@@ -1,23 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  Upload,
-  Music,
-  ImageIcon,
-  X,
-  Loader2,
-  CheckCircle2,
-} from "lucide-react";
+import { Loader2, CheckCircle2, Rocket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import {
   Select,
@@ -26,39 +17,102 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AllStoresToggle,
+  CheckRow,
+  ChoicePills,
+  FieldGroup,
+  FileDropzone,
+  InlineTip,
+  OptionalAccordion,
+  ReleaseSummaryCard,
+  StepPanel,
+  StoreGrid,
+  TagList,
+  UploadStepNav,
+  YesNoChoice,
+} from "@/components/dashboard/upload-form-ui";
+import { WaveformBars } from "@/components/dashboard/waveform-bars";
 import { createClient } from "@/lib/supabase/client";
-import { releaseMetadataSchema, type ReleaseMetadataInput } from "@/lib/validations";
+import {
+  buildTrackTitlePreview,
+  DEFAULT_SELECTED_STORES,
+  getReleaseTypeHint,
+  getReleaseTypeLabel,
+  getTrackCountLabel,
+  LEGAL_CHECKBOXES,
+  LANGUAGES,
+  MAX_TRACK_COUNT,
+  UPLOAD_STORES,
+} from "@/lib/constants/upload";
+import {
+  releaseDistributionSchema,
+  releaseMetadataSchema,
+  type ReleaseMetadataInput,
+} from "@/lib/validations";
 import type { ReleaseWithTracks } from "@/types";
 import {
   ACCEPTED_AUDIO_FORMATS,
-  ACCEPTED_AUDIO_MIME_TYPES,
+  ACCEPTED_AUDIO_LABEL,
+  ACCEPTED_AUDIO_SUBTITLE,
   GENRES,
-  cn,
+  getAudioFormatFromFilename,
+  isAcceptedAudioExtension,
+  type AudioFormat,
 } from "@/lib/utils";
 
 interface UploadFormProps {
   defaultArtistName?: string;
   editReleaseId?: string;
+  artistHasSpotify?: boolean;
+  artistHasApple?: boolean;
 }
 
-function getAudioFormat(filename: string): "wav" | "flac" | "mp3" | null {
-  const ext = filename.split(".").pop()?.toLowerCase();
-  if (ext === "wav") return "wav";
-  if (ext === "flac") return "flac";
-  if (ext === "mp3") return "mp3";
-  return null;
+function getAudioFormat(filename: string): AudioFormat | null {
+  return getAudioFormatFromFilename(filename);
 }
 
-export function UploadForm({ defaultArtistName = "", editReleaseId }: UploadFormProps) {
+function todayIsoDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+type TrackDraft = {
+  clientId: string;
+  dbId?: string;
+  title: string;
+  audioFile: File | null;
+  existingAudioUrl?: string | null;
+  existingAudioFormat?: AudioFormat | null;
+};
+
+function createTrackDraft(partial?: Partial<TrackDraft>): TrackDraft {
+  return {
+    clientId: crypto.randomUUID(),
+    title: "",
+    audioFile: null,
+    ...partial,
+  };
+}
+
+export function UploadForm({
+  defaultArtistName = "",
+  editReleaseId,
+  artistHasSpotify = false,
+  artistHasApple = false,
+}: UploadFormProps) {
   const router = useRouter();
-  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [tracks, setTracks] = useState<TrackDraft[]>([createTrackDraft()]);
   const [artworkFile, setArtworkFile] = useState<File | null>(null);
   const [artworkPreview, setArtworkPreview] = useState<string | null>(null);
   const [featuringInput, setFeaturingInput] = useState("");
+  const [songwriterInput, setSongwriterInput] = useState("");
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [successMode, setSuccessMode] = useState<"draft" | "released">("draft");
   const [loadingDraft, setLoadingDraft] = useState(!!editReleaseId);
+  const [step, setStep] = useState(0);
+  const [stepError, setStepError] = useState<string | null>(null);
 
   const {
     register,
@@ -71,53 +125,228 @@ export function UploadForm({ defaultArtistName = "", editReleaseId }: UploadForm
     resolver: zodResolver(releaseMetadataSchema),
     defaultValues: {
       title: "",
+      trackCount: 1,
       artistName: defaultArtistName,
       featuringArtists: [],
+      songwriterNames: [],
       album: "",
       genre: undefined,
-      releaseDate: "",
+      secondaryGenre: "",
+      releaseDate: todayIsoDate(),
+      releaseTiming: "asap",
+      language: "en",
+      recordLabel: defaultArtistName,
+      previouslyReleased: false,
+      selectedPlatforms: [...DEFAULT_SELECTED_STORES],
       isExplicit: false,
       upc: "",
       isrc: "",
+      hasExistingIsrc: false,
+      showFeaturedInTitle: false,
+      versionType: "normal",
+      versionInfo: "",
+      isCoverSong: false,
+      isInstrumental: false,
+      usesAi: false,
+      previewStart: "auto",
+      socialMonetization: false,
+      artistOnSpotify: artistHasSpotify,
+      artistOnApple: artistHasApple,
+      artistOnYoutube: true,
+      artistOnInstagram: true,
+      artistOnFacebook: true,
+      confirmAuthorized: false,
+      confirmNoUnauthorizedArtists: false,
+      confirmNoPromoServices: false,
+      confirmTerms: false,
+      confirmYoutube: false,
     },
   });
 
-  const isExplicit = watch("isExplicit");
-  const featuringArtists = watch("featuringArtists") || [];
-  const selectedGenre = watch("genre");
+  const watched = watch();
+  const trackCount = Math.min(MAX_TRACK_COUNT, Math.max(1, Number(watched.trackCount) || 1));
+  const featuringArtists = watched.featuringArtists || [];
+  const songwriterNames = watched.songwriterNames || [];
+  const selectedPlatforms = watched.selectedPlatforms || [];
+
+  const trackPreview = useMemo(() => {
+    const primaryTitle =
+      trackCount === 1 ? watched.title : tracks[0]?.title || watched.title;
+    return buildTrackTitlePreview({
+      title: primaryTitle,
+      featuringArtists,
+      showFeaturedInTitle: watched.showFeaturedInTitle,
+      versionType: watched.versionType,
+      versionInfo: watched.versionInfo,
+    });
+  }, [
+    trackCount,
+    watched.title,
+    tracks,
+    featuringArtists,
+    watched.showFeaturedInTitle,
+    watched.versionType,
+    watched.versionInfo,
+  ]);
+
+  const trackTitles = tracks.slice(0, trackCount).map((t) => t.title);
+
+  const releaseDateLabel =
+    watched.releaseTiming === "asap" ? "ASAP" : watched.releaseDate || "Pick a date";
+
+  const hasYoutube = selectedPlatforms.includes("youtube_music");
+  const allStoresEnabled =
+    selectedPlatforms.length === DEFAULT_SELECTED_STORES.length;
+
+  function setTrackCount(count: number) {
+    const next = Math.min(MAX_TRACK_COUNT, Math.max(1, count));
+    setValue("trackCount", next, { shouldValidate: true });
+    setTracks((prev) => {
+      if (prev.length === next) return prev;
+      if (prev.length < next) {
+        return [
+          ...prev,
+          ...Array.from({ length: next - prev.length }, () => createTrackDraft()),
+        ];
+      }
+      return prev.slice(0, next);
+    });
+  }
+
+  function updateTrack(index: number, patch: Partial<TrackDraft>) {
+    setTracks((prev) =>
+      prev.map((track, i) => (i === index ? { ...track, ...patch } : track))
+    );
+  }
+
+  function validateStep(targetStep: number): string | null {
+    if (targetStep >= 1) {
+      if (!watched.artistName?.trim()) return "Enter your artist name.";
+      if (!editReleaseId && !artworkFile && !artworkPreview) return "Upload your cover art.";
+
+      if (trackCount === 1) {
+        if (!watched.title?.trim()) return "Enter your song title.";
+        const track = tracks[0];
+        if (!editReleaseId && !track?.audioFile && !track?.existingAudioUrl) {
+          return "Upload your audio file.";
+        }
+      } else {
+        if (!watched.title?.trim()) return "Enter your release / album title.";
+        for (let i = 0; i < trackCount; i++) {
+          const track = tracks[i];
+          if (!track?.title?.trim()) return `Enter a title for track ${i + 1}.`;
+          if (!editReleaseId && !track?.audioFile && !track?.existingAudioUrl) {
+            return `Upload audio for track ${i + 1}.`;
+          }
+        }
+      }
+    }
+    if (targetStep >= 2) {
+      if (!watched.genre) return "Select a primary genre.";
+      if (!watched.language) return "Select a language.";
+      if (watched.releaseTiming === "scheduled" && !watched.releaseDate) {
+        return "Pick a release date.";
+      }
+    }
+    if (targetStep >= 3) {
+      if (selectedPlatforms.length === 0) return "Select at least one store.";
+    }
+    if (targetStep >= 4) {
+      if (!watched.isCoverSong && songwriterNames.length === 0) {
+        return "Add at least one songwriter legal name.";
+      }
+    }
+    return null;
+  }
+
+  function goNext() {
+    const err = validateStep(step + 1);
+    if (err) {
+      setStepError(err);
+      return;
+    }
+    setStepError(null);
+    setStep((s) => Math.min(s + 1, 3));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function goBack() {
+    setStepError(null);
+    setStep((s) => Math.max(s - 1, 0));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function setAllStores(enabled: boolean) {
+    setValue("selectedPlatforms", enabled ? [...DEFAULT_SELECTED_STORES] : ["spotify", "apple_music", "youtube_music"]);
+  }
 
   useEffect(() => {
     if (!editReleaseId) return;
+    const releaseId: string = editReleaseId;
 
     async function loadDraft() {
-      if (!editReleaseId) return;
-
       const supabase = createClient();
       const { data: releaseData } = await supabase
         .from("releases")
         .select("*, tracks(*)")
-        .eq("id", editReleaseId)
+        .eq("id", releaseId)
         .single();
 
       const release = releaseData as ReleaseWithTracks | null;
-
       if (!release || release.status !== "draft") {
         setLoadingDraft(false);
         setError("Release not found or cannot be edited.");
         return;
       }
 
-      const track = release.tracks?.[0];
+      const meta = (release.metadata || {}) as Record<string, unknown>;
+      const sortedTracks = [...(release.tracks || [])].sort(
+        (a, b) => a.track_number - b.track_number
+      );
+      const count = Math.max(1, sortedTracks.length || Number(meta.trackCount) || 1);
+      const primary = sortedTracks[0];
+      const trackMeta = (primary?.metadata || {}) as Record<string, unknown>;
+
+      setTracks(
+        Array.from({ length: count }, (_, i) => {
+          const existing = sortedTracks[i];
+          return createTrackDraft({
+            dbId: existing?.id,
+            title: existing?.title || "",
+            existingAudioUrl: existing?.audio_url,
+            existingAudioFormat: existing?.audio_format,
+          });
+        })
+      );
+
       reset({
-        title: release.title,
-        artistName: track?.artist_name || defaultArtistName,
-        featuringArtists: track?.featuring_artists || [],
+        title: count === 1 ? primary?.title || release.title : release.title,
+        trackCount: count,
+        artistName: primary?.artist_name || defaultArtistName,
+        featuringArtists: primary?.featuring_artists || [],
+        songwriterNames: (trackMeta.songwriterNames as string[]) || [],
         album: release.album || "",
         genre: (release.genre as ReleaseMetadataInput["genre"]) || undefined,
-        releaseDate: release.release_date || "",
-        isExplicit: track?.is_explicit || false,
+        secondaryGenre: (meta.secondaryGenre as string) || "",
+        releaseDate: release.release_date || todayIsoDate(),
+        releaseTiming: (meta.releaseTiming as ReleaseMetadataInput["releaseTiming"]) || "asap",
+        language: (meta.language as string) || "en",
+        recordLabel: (meta.recordLabel as string) || defaultArtistName,
+        previouslyReleased: Boolean(meta.previouslyReleased),
+        selectedPlatforms:
+          (meta.selectedPlatforms as string[]) || [...DEFAULT_SELECTED_STORES],
+        isExplicit: primary?.is_explicit || false,
         upc: release.upc || "",
-        isrc: track?.isrc || "",
+        isrc: primary?.isrc || "",
+        hasExistingIsrc: Boolean(primary?.isrc),
+        showFeaturedInTitle: Boolean(trackMeta.showFeaturedInTitle),
+        versionType: (trackMeta.versionType as ReleaseMetadataInput["versionType"]) || "normal",
+        versionInfo: (trackMeta.versionInfo as string) || "",
+        isCoverSong: Boolean(trackMeta.isCoverSong),
+        isInstrumental: Boolean(trackMeta.isInstrumental),
+        usesAi: Boolean(trackMeta.usesAi),
+        previewStart: (trackMeta.previewStart as ReleaseMetadataInput["previewStart"]) || "auto",
+        socialMonetization: Boolean(meta.socialMonetization),
       });
 
       if (release.artwork_url) setArtworkPreview(release.artwork_url);
@@ -127,32 +356,34 @@ export function UploadForm({ defaultArtistName = "", editReleaseId }: UploadForm
     loadDraft();
   }, [editReleaseId, defaultArtistName, reset]);
 
-  const handleAudioChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const togglePlatform = useCallback(
+    (id: string, enabled: boolean) => {
+      const next = enabled
+        ? [...new Set([...selectedPlatforms, id])]
+        : selectedPlatforms.filter((p) => p !== id);
+      setValue("selectedPlatforms", next, { shouldValidate: true });
+    },
+    [selectedPlatforms, setValue]
+  );
+
+  const handleTrackAudioChange = useCallback((index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    const ext = `.${file.name.split(".").pop()?.toLowerCase()}`;
-    if (!ACCEPTED_AUDIO_FORMATS.includes(ext)) {
-      setError("Please upload a WAV, FLAC, or MP3 file.");
-      return;
-    }
-    if (!ACCEPTED_AUDIO_MIME_TYPES.includes(file.type) && file.type !== "") {
-      setError("Invalid audio file type.");
+    if (!isAcceptedAudioExtension(file.name)) {
+      setError(`Please upload a ${ACCEPTED_AUDIO_LABEL} file.`);
       return;
     }
     setError(null);
-    setAudioFile(file);
+    updateTrack(index, { audioFile: file });
   }, []);
 
   const handleArtworkChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     if (!file.type.startsWith("image/")) {
       setError("Artwork must be a JPG or PNG image.");
       return;
     }
-
     const img = new window.Image();
     const objectUrl = URL.createObjectURL(file);
     img.onload = () => {
@@ -165,10 +396,6 @@ export function UploadForm({ defaultArtistName = "", editReleaseId }: UploadForm
       setArtworkFile(file);
       setArtworkPreview(objectUrl);
     };
-    img.onerror = () => {
-      setError("Could not read artwork image.");
-      URL.revokeObjectURL(objectUrl);
-    };
     img.src = objectUrl;
   }, []);
 
@@ -179,11 +406,11 @@ export function UploadForm({ defaultArtistName = "", editReleaseId }: UploadForm
     setFeaturingInput("");
   }
 
-  function removeFeaturingArtist(name: string) {
-    setValue(
-      "featuringArtists",
-      featuringArtists.filter((a) => a !== name)
-    );
+  function addSongwriter() {
+    const name = songwriterInput.trim();
+    if (!name || songwriterNames.includes(name)) return;
+    setValue("songwriterNames", [...songwriterNames, name]);
+    setSongwriterInput("");
   }
 
   async function uploadFile(
@@ -191,83 +418,105 @@ export function UploadForm({ defaultArtistName = "", editReleaseId }: UploadForm
     bucket: string,
     path: string,
     file: File
-  ): Promise<string | null> {
-    const { error: uploadError } = await supabase.storage
-      .from(bucket)
-      .upload(path, file, { upsert: true });
-
+  ) {
+    const { error: uploadError } = await supabase.storage.from(bucket).upload(path, file, {
+      upsert: true,
+    });
     if (uploadError) return null;
-
     const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-    return bucket === "audio"
-      ? (await supabase.storage.from(bucket).createSignedUrl(path, 60 * 60 * 24 * 365)).data
-          ?.signedUrl || path
-      : data.publicUrl;
+    return data.publicUrl;
   }
 
-  async function onSubmit(data: ReleaseMetadataInput) {
+  async function onSubmit(data: ReleaseMetadataInput, distribute = false) {
     setError(null);
     setUploadProgress(0);
 
-    if (!editReleaseId && !audioFile) {
-      setError("Please upload an audio file.");
-      return;
+    if (distribute) {
+      const legal = releaseDistributionSchema.safeParse(data);
+      if (!legal.success) {
+        setError(legal.error.errors[0]?.message || "Complete all required fields.");
+        return;
+      }
     }
+
+    const count = Math.min(MAX_TRACK_COUNT, Math.max(1, Number(data.trackCount) || 1));
+    const activeTracks = tracks.slice(0, count);
+
     if (!editReleaseId && !artworkFile && !artworkPreview) {
       setError("Please upload artwork (3000×3000 minimum).");
       return;
+    }
+
+    for (let i = 0; i < count; i++) {
+      const track = activeTracks[i];
+      if (!editReleaseId && !track?.audioFile && !track?.existingAudioUrl) {
+        setError(count === 1 ? "Please upload an audio file." : `Please upload audio for track ${i + 1}.`);
+        return;
+      }
+      if (count > 1 && !track?.title?.trim()) {
+        setError(`Enter a title for track ${i + 1}.`);
+        return;
+      }
     }
 
     const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
-
     if (!user) {
       setError("You must be signed in to upload.");
       return;
     }
 
     setUploadProgress(10);
-
-    let artworkUrl: string | null = artworkPreview;
-    let audioUrl: string | null = null;
     const releaseId = editReleaseId || crypto.randomUUID();
-    const trackId = crypto.randomUUID();
+    let artworkUrl: string | null = artworkPreview;
 
     if (artworkFile) {
       const artworkPath = `${user.id}/${releaseId}/cover.${artworkFile.name.split(".").pop()}`;
       artworkUrl = await uploadFile(supabase, "artwork", artworkPath, artworkFile);
       if (!artworkUrl) {
-        setError("Failed to upload artwork. Please try again.");
+        setError("Failed to upload artwork.");
         return;
       }
-      setUploadProgress(35);
+      setUploadProgress(20);
     }
 
-    if (audioFile) {
-      const audioPath = `${user.id}/${releaseId}/${trackId}.${audioFile.name.split(".").pop()}`;
-      const { error: uploadError } = await supabase.storage
-        .from("audio")
-        .upload(audioPath, audioFile, { upsert: true });
+    const releaseDate =
+      data.releaseTiming === "asap" ? todayIsoDate() : data.releaseDate || todayIsoDate();
 
-      if (uploadError) {
-        setError("Failed to upload audio file. Please try again.");
-        return;
-      }
-      audioUrl = audioPath;
-      setUploadProgress(55);
-    }
+    const releaseTitle = data.title;
+
+    const releaseMetadata = {
+      trackCount: count,
+      selectedPlatforms: data.selectedPlatforms,
+      previouslyReleased: data.previouslyReleased,
+      recordLabel: data.recordLabel || data.artistName,
+      language: data.language,
+      secondaryGenre: data.secondaryGenre || null,
+      releaseTiming: data.releaseTiming,
+      socialMonetization: data.socialMonetization,
+      platformProfiles: {
+        spotify: data.artistOnSpotify,
+        apple: data.artistOnApple,
+        youtube: data.artistOnYoutube,
+        instagram: data.artistOnInstagram,
+        facebook: data.artistOnFacebook,
+      },
+    };
 
     const releasePayload = {
       id: releaseId,
       user_id: user.id,
-      title: data.title,
-      album: data.album || null,
+      title: releaseTitle,
+      album: count > 1 ? data.title : data.album || null,
       genre: data.genre,
-      release_date: data.releaseDate,
+      release_date: releaseDate,
+      scheduled_date:
+        data.releaseTiming === "scheduled" ? `${releaseDate}T00:00:00.000Z` : null,
       artwork_url: artworkUrl,
       upc: data.upc || null,
+      metadata: releaseMetadata,
       status: "draft" as const,
       updated_at: new Date().toISOString(),
     };
@@ -277,333 +526,644 @@ export function UploadForm({ defaultArtistName = "", editReleaseId }: UploadForm
         .from("releases")
         .update(releasePayload)
         .eq("id", editReleaseId);
-
       if (updateError) {
-        setError("Failed to update release. Please try again.");
+        setError("Failed to update release.");
         return;
       }
     } else {
       const { error: insertError } = await supabase.from("releases").insert(releasePayload);
       if (insertError) {
-        setError("Failed to create release. Please try again.");
+        setError("Failed to create release.");
         return;
       }
     }
 
-    setUploadProgress(75);
+    setUploadProgress(35);
 
-    let existingAudioUrl: string | null = null;
-    let existingAudioFormat: "wav" | "flac" | "mp3" | null = null;
-
-    if (editReleaseId && !audioFile) {
-      const { data: existingTracks } = await supabase
+    if (editReleaseId) {
+      const keptIds = activeTracks.map((t) => t.dbId).filter(Boolean) as string[];
+      const { data: existingTrackRows } = await supabase
         .from("tracks")
-        .select("audio_url, audio_format")
-        .eq("release_id", editReleaseId)
-        .limit(1);
-
-      if (existingTracks?.[0]) {
-        existingAudioUrl = existingTracks[0].audio_url;
-        existingAudioFormat = existingTracks[0].audio_format;
+        .select("id")
+        .eq("release_id", releaseId);
+      const toDelete = (existingTrackRows || [])
+        .map((row) => row.id)
+        .filter((id) => !keptIds.includes(id));
+      if (toDelete.length > 0) {
+        await supabase.from("tracks").delete().in("id", toDelete);
       }
     }
 
-    const trackPayload = {
-      release_id: releaseId,
-      user_id: user.id,
-      title: data.title,
-      artist_name: data.artistName,
-      featuring_artists: data.featuringArtists?.length ? data.featuringArtists : null,
-      track_number: 1,
-      audio_url: audioUrl ?? existingAudioUrl,
-      audio_format: audioFile ? getAudioFormat(audioFile.name) : existingAudioFormat,
-      isrc: data.isrc || null,
-      is_explicit: data.isExplicit,
-      updated_at: new Date().toISOString(),
+    const trackMetadata = {
+      showFeaturedInTitle: data.showFeaturedInTitle,
+      versionType: data.versionType,
+      versionInfo: data.versionInfo || null,
+      isCoverSong: data.isCoverSong,
+      songwriterNames: data.songwriterNames || [],
+      isInstrumental: data.isInstrumental,
+      usesAi: data.usesAi,
+      previewStart: data.previewStart,
+      previewStartSeconds: data.previewStartSeconds || null,
+      displayTitle: trackPreview,
     };
 
-    if (editReleaseId) {
-      const { data: existingTracks } = await supabase
-        .from("tracks")
-        .select("id")
-        .eq("release_id", editReleaseId)
-        .limit(1);
+    const progressPerTrack = 50 / Math.max(count, 1);
 
-      if (existingTracks?.[0]) {
-        await supabase.from("tracks").update(trackPayload).eq("id", existingTracks[0].id);
+    for (let i = 0; i < count; i++) {
+      const track = activeTracks[i];
+      const trackId = track.dbId || crypto.randomUUID();
+      let audioUrl: string | null = track.existingAudioUrl ?? null;
+      let audioFormat: AudioFormat | null = track.existingAudioFormat ?? null;
+
+      if (track.audioFile) {
+        const audioPath = `${user.id}/${releaseId}/${trackId}.${track.audioFile.name.split(".").pop()}`;
+        const { error: uploadError } = await supabase.storage
+          .from("audio")
+          .upload(audioPath, track.audioFile, { upsert: true });
+        if (uploadError) {
+          setError(`Failed to upload audio for track ${i + 1}.`);
+          return;
+        }
+        audioUrl = audioPath;
+        audioFormat = getAudioFormat(track.audioFile.name);
+      }
+
+      const trackTitle = count === 1 ? data.title : track.title.trim();
+      const trackPayload = {
+        release_id: releaseId,
+        user_id: user.id,
+        title: trackTitle,
+        artist_name: data.artistName,
+        featuring_artists: featuringArtists.length ? featuringArtists : null,
+        track_number: i + 1,
+        audio_url: audioUrl,
+        audio_format: audioFormat,
+        isrc: i === 0 && data.hasExistingIsrc ? data.isrc || null : null,
+        is_explicit: data.isExplicit,
+        metadata: trackMetadata,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (track.dbId) {
+        await supabase.from("tracks").update(trackPayload).eq("id", track.dbId);
       } else {
         await supabase.from("tracks").insert({ ...trackPayload, id: trackId });
       }
-    } else {
-      await supabase.from("tracks").insert({ ...trackPayload, id: trackId });
+
+      setUploadProgress(35 + Math.round((i + 1) * progressPerTrack));
     }
 
-    setUploadProgress(100);
-    setSuccess(true);
+    setUploadProgress(90);
 
+    if (distribute) {
+      const distributeResponse = await fetch(`/api/releases/${releaseId}/submit`, {
+        method: "POST",
+      });
+      const distributeResult = await distributeResponse.json().catch(() => ({}));
+      if (!distributeResponse.ok) {
+        setError(distributeResult.error || "Uploaded, but could not send to stores.");
+        return;
+      }
+      if (distributeResult.warning) setError(distributeResult.warning);
+    }
+
+    setSuccessMode(distribute ? "released" : "draft");
+    setSuccess(true);
+    setUploadProgress(100);
     setTimeout(() => {
       router.push("/dashboard/releases");
       router.refresh();
-    }, 1500);
+    }, 2000);
   }
 
   if (loadingDraft) {
     return (
-      <Card glass>
-        <CardContent className="flex items-center justify-center py-16">
-          <Loader2 className="h-8 w-8 animate-spin text-ascend-purple" />
-        </CardContent>
-      </Card>
+      <div className="relative mx-auto max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-white/[0.02] py-24 upload-card-glow">
+        <div className="pointer-events-none absolute inset-0 upload-aurora opacity-50" />
+        <div className="relative flex flex-col items-center justify-center gap-6 px-6 text-center">
+          <Loader2 className="h-10 w-10 animate-spin text-ascend-purple" />
+          <div>
+            <p className="font-semibold">Loading your release</p>
+            <p className="mt-1 text-sm text-muted-foreground">Pulling up your draft…</p>
+          </div>
+          <WaveformBars className="h-12 w-48" animated />
+        </div>
+      </div>
     );
   }
 
   if (success) {
     return (
-      <Card glass>
-        <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-          <CheckCircle2 className="h-12 w-12 text-green-400 mb-4" />
-          <h3 className="text-lg font-semibold">Upload saved as draft</h3>
-          <p className="text-sm text-muted-foreground mt-1">
-            Redirecting to your releases...
+      <div className="relative mx-auto max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-white/[0.02] py-24 upload-card-glow animate-step-in">
+        <div className="pointer-events-none absolute inset-0 upload-aurora" />
+        <div className="pointer-events-none absolute left-1/2 top-8 h-40 w-40 -translate-x-1/2 rounded-full bg-green-400/15 blur-3xl animate-glow-pulse" />
+
+        <div className="relative flex flex-col items-center justify-center px-6 text-center">
+          <div className="relative mb-6">
+            <div className="absolute inset-0 rounded-full bg-green-400/20 blur-xl animate-glow-pulse" />
+            <CheckCircle2 className="relative h-16 w-16 text-green-400" />
+          </div>
+          <h3 className="text-2xl font-bold">
+            {successMode === "released" ? (
+              <>
+                Sent to stores <span className="gradient-text">live</span>
+              </>
+            ) : (
+              "Saved as draft"
+            )}
+          </h3>
+          <p className="mt-3 max-w-md text-sm text-muted-foreground leading-relaxed">
+            {successMode === "released"
+              ? "Your release is on its way to every store you selected. Time to celebrate."
+              : "Finish anytime and hit Release to Stores when you're ready to go live."}
           </p>
-        </CardContent>
-      </Card>
+          {successMode === "released" && (
+            <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-ascend-purple/30 bg-ascend-purple/10 px-4 py-2 text-xs font-medium text-ascend-purple">
+              <Rocket className="h-3.5 w-3.5" />
+              Distribution in progress
+            </div>
+          )}
+        </div>
+      </div>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card glass>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Music className="h-4 w-4 text-ascend-purple" />
-              Audio File
-            </CardTitle>
-            <CardDescription>WAV, FLAC, or MP3</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <label
-              htmlFor="audio-upload"
-              className={cn(
-                "flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-white/10 p-8 cursor-pointer transition-colors hover:border-ascend-purple/50 hover:bg-white/[0.02]",
-                audioFile && "border-ascend-purple/30 bg-ascend-purple/5"
-              )}
+    <div className="relative mx-auto max-w-3xl">
+      <div className="pointer-events-none absolute -inset-x-4 top-0 h-full upload-aurora opacity-30" />
+
+      <div className="relative">
+        <UploadStepNav current={step} onStepClick={setStep} />
+
+      <form onSubmit={handleSubmit((data) => onSubmit(data, true))} className="space-y-6">
+        <div key={step} className="animate-step-in">
+        {step === 0 && (
+          <StepPanel
+            title="Your music"
+            description="Choose how many songs you're releasing, then add your files and titles."
+          >
+            <FieldGroup
+              label="Number of songs"
+              hint={getReleaseTypeHint(trackCount)}
             >
-              <input
-                id="audio-upload"
-                type="file"
-                accept={ACCEPTED_AUDIO_FORMATS.join(",")}
-                className="sr-only"
-                onChange={handleAudioChange}
-              />
-              <Upload className="h-8 w-8 text-muted-foreground mb-3" />
-              {audioFile ? (
-                <>
-                  <p className="font-medium text-sm">{audioFile.name}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {(audioFile.size / (1024 * 1024)).toFixed(1)} MB
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="font-medium text-sm">Drop your audio file here</p>
-                  <p className="text-xs text-muted-foreground mt-1">or click to browse</p>
-                </>
-              )}
-            </label>
-          </CardContent>
-        </Card>
-
-        <Card glass>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <ImageIcon className="h-4 w-4 text-ascend-blue" />
-              Artwork
-            </CardTitle>
-            <CardDescription>JPG or PNG, minimum 3000×3000 px</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <label
-              htmlFor="artwork-upload"
-              className={cn(
-                "flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-white/10 p-8 cursor-pointer transition-colors hover:border-ascend-blue/50 hover:bg-white/[0.02]",
-                artworkPreview && "border-ascend-blue/30"
-              )}
-            >
-              <input
-                id="artwork-upload"
-                type="file"
-                accept="image/jpeg,image/png,image/jpg"
-                className="sr-only"
-                onChange={handleArtworkChange}
-              />
-              {artworkPreview ? (
-                <div className="relative h-32 w-32 rounded-lg overflow-hidden">
-                  <Image src={artworkPreview} alt="Artwork preview" fill className="object-cover" />
-                </div>
-              ) : (
-                <>
-                  <ImageIcon className="h-8 w-8 text-muted-foreground mb-3" />
-                  <p className="font-medium text-sm">Upload cover art</p>
-                  <p className="text-xs text-muted-foreground mt-1">3000×3000 minimum</p>
-                </>
-              )}
-            </label>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card glass>
-        <CardHeader>
-          <CardTitle className="text-base">Release Metadata</CardTitle>
-          <CardDescription>Information displayed on streaming platforms</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="title">Title *</Label>
-              <Input id="title" placeholder="Track title" {...register("title")} />
-              {errors.title && <p className="text-xs text-red-400">{errors.title.message}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="artistName">Artist *</Label>
-              <Input id="artistName" placeholder="Primary artist" {...register("artistName")} />
-              {errors.artistName && (
-                <p className="text-xs text-red-400">{errors.artistName.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="album">Album</Label>
-              <Input id="album" placeholder="Album name (optional)" {...register("album")} />
-            </div>
-
-            <div className="space-y-2 sm:col-span-2">
-              <Label>Featuring</Label>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Add featured artist"
-                  value={featuringInput}
-                  onChange={(e) => setFeaturingInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addFeaturingArtist();
-                    }
-                  }}
-                />
-                <Button type="button" variant="secondary" onClick={addFeaturingArtist}>
-                  Add
-                </Button>
-              </div>
-              {featuringArtists.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {featuringArtists.map((name) => (
-                    <span
-                      key={name}
-                      className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-xs"
-                    >
-                      {name}
-                      <button
-                        type="button"
-                        onClick={() => removeFeaturingArtist(name)}
-                        className="hover:text-red-400"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label>Genre *</Label>
               <Select
-                value={selectedGenre}
-                onValueChange={(v) => setValue("genre", v as ReleaseMetadataInput["genre"])}
+                value={String(trackCount)}
+                onValueChange={(v) => setTrackCount(Number(v))}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select genre" />
+                <SelectTrigger className="h-11">
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {GENRES.map((genre) => (
-                    <SelectItem key={genre} value={genre}>
-                      {genre}
+                  {Array.from({ length: MAX_TRACK_COUNT }, (_, i) => i + 1).map((n) => (
+                    <SelectItem key={n} value={String(n)}>
+                      {getTrackCountLabel(n)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {errors.genre && <p className="text-xs text-red-400">{errors.genre.message}</p>}
+              <p className="mt-2 inline-flex items-center gap-2 rounded-full border border-ascend-purple/25 bg-ascend-purple/10 px-3 py-1 text-sm font-semibold text-ascend-purple">
+                {getReleaseTypeLabel(trackCount)}
+              </p>
+            </FieldGroup>
+
+            <FieldGroup label="Cover art" required error={stepError?.includes("cover") ? stepError : undefined}>
+              <FileDropzone
+                id="artwork-upload"
+                accept="image/jpeg,image/png"
+                onChange={handleArtworkChange}
+                title="Drop artwork here"
+                subtitle="3000×3000 JPG or PNG"
+                accent="blue"
+                preview={
+                  artworkPreview ? (
+                    <div className="relative h-36 w-36 rounded-xl overflow-hidden">
+                      <Image src={artworkPreview} alt="Cover" fill className="object-cover" />
+                    </div>
+                  ) : undefined
+                }
+              />
+            </FieldGroup>
+
+            {trackCount === 1 ? (
+              <>
+                <FieldGroup
+                  label="Song title"
+                  htmlFor="title"
+                  required
+                  hint="No featured artists or years in the title."
+                  error={errors.title?.message}
+                >
+                  <Input id="title" className="h-11 text-base" placeholder="e.g. Midnight Drive" {...register("title")} />
+                </FieldGroup>
+
+                <FieldGroup label="Upload your audio file" required error={stepError?.includes("audio") ? stepError : undefined}>
+                  <FileDropzone
+                    id="audio-upload-0"
+                    accept={ACCEPTED_AUDIO_FORMATS.join(",")}
+                    onChange={(e) => handleTrackAudioChange(0, e)}
+                    title="Drop audio here"
+                    subtitle={ACCEPTED_AUDIO_SUBTITLE}
+                    fileName={tracks[0]?.audioFile?.name}
+                    accent="purple"
+                  />
+                </FieldGroup>
+              </>
+            ) : (
+              <>
+                <FieldGroup
+                  label="Release title"
+                  htmlFor="title"
+                  required
+                  hint="Album or EP name — not individual track titles."
+                  error={errors.title?.message}
+                >
+                  <Input id="title" className="h-11 text-base" placeholder="e.g. Night Sessions" {...register("title")} />
+                </FieldGroup>
+
+                <div className="space-y-4">
+                  {tracks.slice(0, trackCount).map((track, index) => (
+                    <div
+                      key={track.clientId}
+                      className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.04] to-transparent p-4 space-y-4 transition-colors hover:border-ascend-purple/20"
+                    >
+                      <p className="flex items-center gap-2 text-sm font-semibold">
+                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-ascend-purple/15 text-xs text-ascend-purple">
+                          {index + 1}
+                        </span>
+                        Track {index + 1}
+                      </p>
+                      <FieldGroup
+                        label="Track title"
+                        required
+                        error={stepError?.includes(`track ${index + 1}`) ? stepError : undefined}
+                      >
+                        <Input
+                          className="h-11"
+                          placeholder={`Track ${index + 1} title`}
+                          value={track.title}
+                          onChange={(e) => updateTrack(index, { title: e.target.value })}
+                        />
+                      </FieldGroup>
+                      <FieldGroup
+                        label="Upload your audio file"
+                        required
+                        error={stepError?.includes(`track ${index + 1}`) ? stepError : undefined}
+                      >
+                        <FileDropzone
+                          id={`audio-upload-${index}`}
+                          accept={ACCEPTED_AUDIO_FORMATS.join(",")}
+                          onChange={(e) => handleTrackAudioChange(index, e)}
+                          title="Drop audio here"
+                          subtitle={ACCEPTED_AUDIO_SUBTITLE}
+                          fileName={track.audioFile?.name}
+                          accent="purple"
+                        />
+                      </FieldGroup>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <FieldGroup
+              label="Artist name"
+              htmlFor="artistName"
+              required
+              hint="Stage or band name only — no emojis or other artists."
+              error={errors.artistName?.message}
+            >
+              <Input
+                id="artistName"
+                className="h-11 text-base"
+                placeholder="e.g. iiheartvisa"
+                {...register("artistName")}
+              />
+            </FieldGroup>
+
+            {(artistHasSpotify || artistHasApple) && (
+              <InlineTip>
+                Your existing Spotify / Apple Music profile will be used for this release.
+              </InlineTip>
+            )}
+          </StepPanel>
+        )}
+
+        {step === 1 && (
+          <StepPanel
+            title="Release details"
+            description={`Tell stores when and how to list your ${getReleaseTypeLabel(trackCount).toLowerCase()}.`}
+          >
+            <FieldGroup label="Primary genre" required error={errors.genre?.message}>
+              <Select
+                value={watched.genre}
+                onValueChange={(v) => setValue("genre", v as ReleaseMetadataInput["genre"])}
+              >
+                <SelectTrigger className="h-11">
+                  <SelectValue placeholder="Choose a genre" />
+                </SelectTrigger>
+                <SelectContent>
+                  {GENRES.map((g) => (
+                    <SelectItem key={g} value={g}>
+                      {g}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FieldGroup>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <FieldGroup label="Language">
+                <Select value={watched.language} onValueChange={(v) => setValue("language", v)}>
+                  <SelectTrigger className="h-11">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LANGUAGES.map((lang) => (
+                      <SelectItem key={lang.value} value={lang.value}>
+                        {lang.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FieldGroup>
+              <FieldGroup label="Record label" hint="Defaults to your artist name.">
+                <Input className="h-11" placeholder="Label name" {...register("recordLabel")} />
+              </FieldGroup>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="releaseDate">Release Date *</Label>
-              <Input id="releaseDate" type="date" {...register("releaseDate")} />
-              {errors.releaseDate && (
-                <p className="text-xs text-red-400">{errors.releaseDate.message}</p>
+            <FieldGroup label="When should it go live?">
+              <ChoicePills
+                value={watched.releaseTiming}
+                onChange={(v) => setValue("releaseTiming", v)}
+                options={[
+                  { value: "asap", label: "ASAP" },
+                  { value: "scheduled", label: "Pick a date" },
+                ]}
+              />
+              {watched.releaseTiming === "scheduled" && (
+                <Input type="date" className="h-11 mt-3 max-w-xs" {...register("releaseDate")} />
+              )}
+            </FieldGroup>
+
+            <FieldGroup label="Previously released?">
+              <YesNoChoice
+                value={watched.previouslyReleased}
+                onChange={(v) => setValue("previouslyReleased", v)}
+              />
+            </FieldGroup>
+          </StepPanel>
+        )}
+
+        {step === 2 && (
+          <StepPanel
+            title="Choose stores"
+            description="Most artists release everywhere. You can customize if needed."
+          >
+            <AllStoresToggle
+              enabled={allStoresEnabled}
+              onChange={setAllStores}
+              storeCount={UPLOAD_STORES.length}
+            />
+
+            <OptionalAccordion title="Customize store list (optional)">
+              <StoreGrid selectedIds={selectedPlatforms} onToggle={togglePlatform} />
+            </OptionalAccordion>
+
+            {errors.selectedPlatforms && (
+              <p className="text-xs text-red-400">{errors.selectedPlatforms.message}</p>
+            )}
+          </StepPanel>
+        )}
+
+        {step === 3 && (
+          <StepPanel
+            title="Review & release"
+            description="Confirm credits, check the summary, and send it live."
+          >
+            <ReleaseSummaryCard
+              trackPreview={trackPreview}
+              artistName={watched.artistName}
+              releaseDateLabel={releaseDateLabel}
+              storeCount={selectedPlatforms.length}
+              artworkPreview={artworkPreview}
+              genre={watched.genre}
+              trackCount={trackCount}
+              trackTitles={trackTitles}
+              releaseTitle={trackCount > 1 ? watched.title : undefined}
+            />
+
+            <FieldGroup label="Is this a cover song?">
+              <YesNoChoice
+                value={watched.isCoverSong}
+                onChange={(v) => setValue("isCoverSong", v)}
+                noLabel="Original"
+                yesLabel="Cover"
+              />
+            </FieldGroup>
+
+            {!watched.isCoverSong && (
+              <FieldGroup
+                label="Songwriter legal name"
+                required
+                hint="Real name — we need this for original songs."
+                error={errors.songwriterNames?.message || (stepError?.includes("songwriter") ? stepError : undefined)}
+              >
+                <div className="flex gap-2">
+                  <Input
+                    className="h-11"
+                    placeholder="Full legal name"
+                    value={songwriterInput}
+                    onChange={(e) => setSongwriterInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSongwriter())}
+                  />
+                  <Button type="button" variant="secondary" className="shrink-0" onClick={addSongwriter}>
+                    Add
+                  </Button>
+                </div>
+                <TagList items={songwriterNames} onRemove={(name) => setValue("songwriterNames", songwriterNames.filter((n) => n !== name))} />
+              </FieldGroup>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <FieldGroup label="Explicit lyrics?">
+                <YesNoChoice value={watched.isExplicit} onChange={(v) => setValue("isExplicit", v)} />
+              </FieldGroup>
+              <FieldGroup label="Instrumental?">
+                <YesNoChoice
+                  value={watched.isInstrumental}
+                  onChange={(v) => setValue("isInstrumental", v)}
+                  noLabel="Has lyrics"
+                  yesLabel="Instrumental"
+                />
+              </FieldGroup>
+            </div>
+
+            <OptionalAccordion title="More options — featured artists, version, ISRC, AI">
+              <FieldGroup label="Featured artists" hint="Add collaborators; optional in song title.">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Featured artist name"
+                    value={featuringInput}
+                    onChange={(e) => setFeaturingInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addFeaturingArtist())}
+                  />
+                  <Button type="button" variant="secondary" onClick={addFeaturingArtist}>
+                    Add
+                  </Button>
+                </div>
+                <TagList
+                  items={featuringArtists}
+                  onRemove={(name) =>
+                    setValue("featuringArtists", featuringArtists.filter((a) => a !== name))
+                  }
+                />
+              </FieldGroup>
+
+              <FieldGroup label="Show featured artists in title?">
+                <YesNoChoice
+                  value={watched.showFeaturedInTitle}
+                  onChange={(v) => setValue("showFeaturedInTitle", v)}
+                />
+              </FieldGroup>
+
+              <div className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm">
+                <span className="text-muted-foreground">Stores will show: </span>
+                <span className="font-medium">{trackPreview}</span>
+              </div>
+
+              <FieldGroup label="Version">
+                <ChoicePills
+                  value={watched.versionType}
+                  onChange={(v) => setValue("versionType", v)}
+                  options={[
+                    { value: "normal", label: "Normal" },
+                    { value: "radio_edit", label: "Radio edit" },
+                    { value: "other", label: "Other" },
+                  ]}
+                />
+                {watched.versionType === "other" && (
+                  <Input className="mt-2" placeholder="e.g. Acoustic" {...register("versionInfo")} />
+                )}
+              </FieldGroup>
+
+              <FieldGroup label="Have your own ISRC?">
+                <YesNoChoice
+                  value={watched.hasExistingIsrc}
+                  onChange={(v) => setValue("hasExistingIsrc", v)}
+                  noLabel="Assign for me"
+                  yesLabel="I have one"
+                />
+                {watched.hasExistingIsrc && (
+                  <Input className="mt-2" placeholder="ISRC code" {...register("isrc")} />
+                )}
+              </FieldGroup>
+
+              <FieldGroup label="Uses AI-generated audio or lyrics?">
+                <YesNoChoice value={watched.usesAi} onChange={(v) => setValue("usesAi", v)} />
+              </FieldGroup>
+
+              <div className="flex items-center justify-between rounded-xl border border-white/10 p-4">
+                <div>
+                  <p className="text-sm font-medium">Social media monetization</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">YouTube, TikTok, Instagram, Facebook</p>
+                </div>
+                <Switch
+                  checked={watched.socialMonetization}
+                  onCheckedChange={(v) => setValue("socialMonetization", v)}
+                />
+              </div>
+            </OptionalAccordion>
+
+            <div className="space-y-3 pt-2">
+              <p className="text-sm font-medium">Before you release</p>
+              {LEGAL_CHECKBOXES.map((item) => (
+                <CheckRow
+                  key={item.id}
+                  id={item.id}
+                  label={item.label}
+                  checked={Boolean(watched[item.id as keyof ReleaseMetadataInput])}
+                  onChange={(v) =>
+                    setValue(item.id as keyof ReleaseMetadataInput, v as never, {
+                      shouldValidate: true,
+                    })
+                  }
+                />
+              ))}
+              {hasYoutube && (
+                <CheckRow
+                  id="confirmYoutube"
+                  label="I understand my music will be delivered to YouTube Music."
+                  checked={Boolean(watched.confirmYoutube)}
+                  onChange={(v) => setValue("confirmYoutube", v)}
+                />
               )}
             </div>
+          </StepPanel>
+        )}
+        </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="upc">UPC</Label>
-              <Input id="upc" placeholder="Optional UPC code" {...register("upc")} />
-            </div>
+        {(stepError || error) && (
+          <div className="rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-400 animate-step-in">
+            {stepError || error}
+          </div>
+        )}
 
-            <div className="space-y-2">
-              <Label htmlFor="isrc">ISRC</Label>
-              <Input id="isrc" placeholder="Optional ISRC code" {...register("isrc")} />
-            </div>
-
-            <div className="flex items-center justify-between rounded-lg border border-white/[0.06] p-4 sm:col-span-2">
-              <div>
-                <Label htmlFor="explicit">Explicit Content</Label>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Mark if this release contains explicit lyrics
-                </p>
-              </div>
-              <Switch
-                id="explicit"
-                checked={isExplicit}
-                onCheckedChange={(v) => setValue("isExplicit", v)}
-              />
+        {isSubmitting && uploadProgress > 0 && (
+          <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+            <Progress value={uploadProgress} className="h-2" />
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>Uploading your release</span>
+              <span className="font-mono text-ascend-purple">{uploadProgress}%</span>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        )}
 
-      {isSubmitting && uploadProgress > 0 && (
-        <div className="space-y-2">
-          <Progress value={uploadProgress} className="h-2" />
-          <p className="text-xs text-muted-foreground text-center">Uploading... {uploadProgress}%</p>
+        <div className="flex flex-col-reverse gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4 sm:flex-row sm:items-center sm:justify-between">
+          <Button type="button" variant="ghost" onClick={() => (step === 0 ? router.back() : goBack())}>
+            {step === 0 ? "Cancel" : "Back"}
+          </Button>
+
+          <div className="flex flex-col-reverse gap-3 sm:flex-row">
+            {step === 3 && (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isSubmitting}
+                onClick={handleSubmit((data) => onSubmit(data, false))}
+              >
+                Save as draft
+              </Button>
+            )}
+            {step < 3 ? (
+              <Button
+                type="button"
+                size="lg"
+                className="min-w-[140px] bg-gradient-to-r from-ascend-purple to-ascend-blue hover:opacity-90 shadow-[0_0_30px_-8px_rgba(139,92,246,0.6)]"
+                onClick={goNext}
+              >
+                Continue
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                size="lg"
+                disabled={isSubmitting}
+                className="min-w-[180px] bg-gradient-to-r from-ascend-purple via-ascend-blue to-ascend-cyan hover:opacity-90 shadow-[0_0_40px_-8px_rgba(139,92,246,0.7)]"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Releasing…
+                  </>
+                ) : (
+                  "Release to stores"
+                )}
+              </Button>
+            )}
+          </div>
         </div>
-      )}
-
-      {error && (
-        <div className="rounded-lg bg-red-400/10 border border-red-400/20 p-3 text-sm text-red-400">
-          {error}
-        </div>
-      )}
-
-      <div className="flex justify-end gap-3">
-        <Button type="button" variant="ghost" onClick={() => router.back()}>
-          Cancel
-        </Button>
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : editReleaseId ? (
-            "Update Draft"
-          ) : (
-            "Save as Draft"
-          )}
-        </Button>
+      </form>
       </div>
-    </form>
+    </div>
   );
 }

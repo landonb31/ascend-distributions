@@ -44,6 +44,9 @@ Run the migrations in your Supabase SQL editor (in order):
 
 1. `supabase/migrations/001_initial_schema.sql` — tables, RLS, triggers
 2. `supabase/migrations/002_storage_policies.sql` — storage buckets and policies
+3. `supabase/migrations/003_distribution.sql` — store delivery jobs and platform tracking
+
+Or run the combined `supabase/setup-all.sql` (includes all three).
 
 Enable Email Auth in Supabase Dashboard → Authentication → Providers.
 
@@ -109,7 +112,28 @@ For local webhook testing, install the [Stripe CLI](https://stripe.com/docs/stri
 stripe listen --forward-to localhost:3000/api/stripe/webhook
 ```
 
-### 5. Run locally
+### 6. Set up distribution (store delivery)
+
+Ascend delivers music to Spotify, Apple Music, and other DSPs through **FUGA** (industry B2B distribution API). You need a FUGA distributor account with API access:
+
+1. Contact [FUGA](https://fuga.com) for white-label / API access
+2. Add credentials to `.env.local`:
+
+```bash
+FUGA_API_URL=https://next.fugamusic.com/api/v2
+FUGA_USERNAME=your-fuga-user
+FUGA_PASSWORD=your-fuga-password
+FUGA_LABEL_ID=your-label-id
+FUGA_DELIVERY_DSPS=spotify-dsp-id,apple-dsp-id
+CRON_SECRET=random-secret-for-cron
+```
+
+3. Configure FUGA webhooks to `https://ascenddistributions.com/api/distribution/webhook`
+4. Set `CRON_SECRET` in Vercel (cron runs every 15 minutes for scheduled releases)
+
+**Release flow:** Upload → Release to stores → Automatic delivery to Spotify, Apple Music, etc.
+
+### 7. Run locally
 
 ```bash
 npm run dev

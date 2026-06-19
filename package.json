@@ -9,7 +9,10 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "setup:stripe": "node scripts/setup-stripe.mjs"
+    "setup:stripe": "node scripts/setup-stripe.mjs",
+    "setup:db": "node scripts/run-migrations.mjs",
+    "setup:bootstrap": "node scripts/bootstrap-users.mjs",
+    "setup": "node scripts/setup-all.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

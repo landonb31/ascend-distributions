@@ -1,3 +1,5 @@
+import { ACCEPTED_AUDIO_LABEL } from "@/lib/utils";
+
 export const APP_NAME = "Ascend Distributions";
 export const COMPANY_NAME = "Ascend Systems LLC";
 export const APP_DESCRIPTION =
@@ -78,7 +80,7 @@ export const FAQ_ITEMS = [
   {
     question: "What file formats do you accept?",
     answer:
-      "We accept WAV, FLAC, and MP3 audio files. Artwork must be at least 3000x3000 pixels in JPG or PNG format.",
+      `We accept ${ACCEPTED_AUDIO_LABEL} audio files. Artwork must be at least 3000x3000 pixels in JPG or PNG format.`,
   },
   {
     question: "How long does distribution take?",
@@ -138,7 +140,7 @@ export const HOW_IT_WORKS = [
   {
     step: "01",
     title: "Upload Your Music",
-    description: "Drop your WAV, FLAC, or MP3 files with artwork and metadata. Our smart validator catches issues before submission.",
+    description: `Drop your ${ACCEPTED_AUDIO_LABEL} files with artwork and metadata. Our smart validator catches issues before submission.`,
   },
   {
     step: "02",

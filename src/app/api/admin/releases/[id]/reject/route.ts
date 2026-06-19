@@ -1,3 +1,4 @@
+import { createAdminClient } from "@/lib/supabase/admin";
 import { rejectReleaseSchema } from "@/lib/validations";
 import { sendReleaseRejectedEmail } from "@/lib/email";
 import { apiError, apiSuccess, requireAdmin } from "@/lib/api";
@@ -11,6 +12,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     if ("error" in auth) return auth.error;
 
     const { supabase, user } = auth;
+    const admin = createAdminClient();
     const body = await request.json();
     const parsed = rejectReleaseSchema.safeParse(body);
 
@@ -51,7 +53,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       return apiError("Failed to reject release", 500);
     }
 
-    await supabase.from("notifications").insert({
+    await admin.from("notifications").insert({
       user_id: release.user_id,
       type: "release_rejected",
       title: "Release Needs Changes",
@@ -60,7 +62,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       metadata: { release_id: id, reason },
     });
 
-    const { data: owner } = await supabase
+    const { data: owner } = await admin
       .from("users")
       .select("email")
       .eq("id", release.user_id)

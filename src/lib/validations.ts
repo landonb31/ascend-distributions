@@ -41,18 +41,99 @@ export const profileSchema = z.object({
   isPublic: z.boolean().default(true),
 });
 
-export const releaseMetadataSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  artistName: z.string().min(1, "Artist name is required"),
-  featuringArtists: z.array(z.string()).optional(),
-  album: z.string().optional(),
-  genre: z.enum(GENRES as unknown as [string, ...string[]], {
-    errorMap: () => ({ message: "Please select a genre" }),
-  }),
-  releaseDate: z.string().min(1, "Release date is required"),
-  isExplicit: z.boolean().default(false),
-  upc: z.string().optional(),
-  isrc: z.string().optional(),
+export const releaseMetadataSchema = z
+  .object({
+    title: z.string().min(1, "Title is required"),
+    trackCount: z.coerce.number().min(1).max(35).default(1),
+    artistName: z.string().min(1, "Artist name is required"),
+    featuringArtists: z.array(z.string()).optional(),
+    album: z.string().optional(),
+    genre: z.enum(GENRES as unknown as [string, ...string[]], {
+      errorMap: () => ({ message: "Please select a genre" }),
+    }),
+    secondaryGenre: z.string().optional(),
+    releaseDate: z.string().optional(),
+    releaseTiming: z.enum(["asap", "scheduled"]).default("asap"),
+    language: z.string().min(1, "Select a language"),
+    recordLabel: z.string().optional(),
+    previouslyReleased: z.boolean().default(false),
+    selectedPlatforms: z.array(z.string()).min(1, "Select at least one store"),
+    isExplicit: z.boolean().default(false),
+    upc: z.string().optional(),
+    isrc: z.string().optional(),
+    hasExistingIsrc: z.boolean().default(false),
+    showFeaturedInTitle: z.boolean().default(false),
+    versionType: z.enum(["normal", "radio_edit", "other"]).default("normal"),
+    versionInfo: z.string().optional(),
+    isCoverSong: z.boolean().default(false),
+    songwriterNames: z.array(z.string()).optional(),
+    isInstrumental: z.boolean().default(false),
+    usesAi: z.boolean().default(false),
+    previewStart: z.enum(["auto", "manual"]).default("auto"),
+    previewStartSeconds: z.coerce.number().optional(),
+    socialMonetization: z.boolean().default(false),
+    artistOnSpotify: z.boolean().default(true),
+    artistOnApple: z.boolean().default(true),
+    artistOnYoutube: z.boolean().default(true),
+    artistOnInstagram: z.boolean().default(true),
+    artistOnFacebook: z.boolean().default(true),
+    confirmAuthorized: z.boolean().optional(),
+    confirmNoUnauthorizedArtists: z.boolean().optional(),
+    confirmNoPromoServices: z.boolean().optional(),
+    confirmTerms: z.boolean().optional(),
+    confirmYoutube: z.boolean().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.releaseTiming === "scheduled" && !data.releaseDate) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Pick a release date for scheduled releases",
+        path: ["releaseDate"],
+      });
+    }
+
+    if (!data.isCoverSong && (!data.songwriterNames || data.songwriterNames.length === 0)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Add at least one songwriter for original songs",
+        path: ["songwriterNames"],
+      });
+    }
+
+    if (data.versionType === "other" && !data.versionInfo?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Describe the version (e.g. Acoustic, Remix)",
+        path: ["versionInfo"],
+      });
+    }
+  });
+
+export const releaseDistributionSchema = releaseMetadataSchema.superRefine((data, ctx) => {
+  const legalFields = [
+    "confirmAuthorized",
+    "confirmNoUnauthorizedArtists",
+    "confirmNoPromoServices",
+    "confirmTerms",
+  ] as const;
+
+  for (const field of legalFields) {
+    if (!data[field]) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Required before releasing to stores",
+        path: [field],
+      });
+    }
+  }
+
+  if (data.selectedPlatforms.includes("youtube_music") && !data.confirmYoutube) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Confirm YouTube Music delivery",
+      path: ["confirmYoutube"],
+    });
+  }
 });
 
 export const payoutSchema = z.object({
@@ -108,7 +189,7 @@ export const releaseCreateSchema = z.object({
         trackNumber: z.number().int().min(1).default(1),
         durationSeconds: z.number().int().optional(),
         audioUrl: z.string().url().optional(),
-        audioFormat: z.enum(["wav", "flac", "mp3"]).optional(),
+        audioFormat: z.enum(["wav", "mp3", "m4a", "flac", "aiff", "wma"]).optional(),
         isrc: z.string().optional(),
         isExplicit: z.boolean().default(false),
       })
@@ -129,6 +210,7 @@ export type VerifyCodeInput = z.infer<typeof verifyCodeSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ProfileInput = z.infer<typeof profileSchema>;
 export type ReleaseMetadataInput = z.infer<typeof releaseMetadataSchema>;
+export type ReleaseDistributionInput = z.infer<typeof releaseDistributionSchema>;
 export type PayoutInput = z.infer<typeof payoutSchema>;
 export type ContactInput = z.infer<typeof contactSchema>;
 export type PostInput = z.infer<typeof postSchema>;

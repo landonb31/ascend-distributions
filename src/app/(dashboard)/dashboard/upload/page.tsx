@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { UploadForm } from "@/components/dashboard/upload-form";
+import { UploadPageHero } from "@/components/dashboard/upload-page-hero";
 
 export const metadata = { title: "Upload Music" };
 
@@ -18,24 +19,22 @@ export default async function UploadPage({ searchParams }: UploadPageProps) {
 
   const { data: artist } = await supabase
     .from("artists")
-    .select("artist_name")
+    .select("artist_name, spotify_id, apple_music_id")
     .eq("user_id", user.id)
     .single();
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-          {edit ? "Edit Draft" : "Upload Music"}
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          {edit
-            ? "Update your draft release before submitting for review."
-            : "Upload your track, artwork, and metadata to distribute worldwide."}
-        </p>
-      </div>
+    <div className="relative space-y-8 animate-fade-in">
+      <div className="pointer-events-none absolute inset-x-0 -top-8 h-96 upload-aurora opacity-60" />
 
-      <UploadForm defaultArtistName={artist?.artist_name || ""} editReleaseId={edit} />
+      <UploadPageHero editing={Boolean(edit)} />
+
+      <UploadForm
+        defaultArtistName={artist?.artist_name || ""}
+        editReleaseId={edit}
+        artistHasSpotify={Boolean(artist?.spotify_id)}
+        artistHasApple={Boolean(artist?.apple_music_id)}
+      />
     </div>
   );
 }

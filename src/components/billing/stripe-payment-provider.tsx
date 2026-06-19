@@ -2,7 +2,7 @@
 
 import { Elements } from "@stripe/react-stripe-js";
 import { loadStripe, type StripeElementsOptions } from "@stripe/stripe-js";
-import { stripeAppearance } from "@/lib/stripe/appearance";
+import { stripeAppearance, stripeFonts } from "@/lib/stripe/appearance";
 import { EmbeddedPaymentForm } from "@/components/billing/embedded-payment-form";
 import type { SubscriptionPlan } from "@/types";
 
@@ -25,6 +25,7 @@ interface StripePaymentProviderProps {
     amount: number;
     interval: "monthly" | "yearly";
     royaltySplit: string;
+    recurringLabel?: string;
   };
 }
 
@@ -36,6 +37,7 @@ export function StripePaymentProvider({
   const options: StripeElementsOptions = {
     clientSecret,
     appearance: stripeAppearance,
+    fonts: stripeFonts,
   };
 
   return (
